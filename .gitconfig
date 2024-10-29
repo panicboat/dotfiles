@@ -1,0 +1,34 @@
+[user]
+	name = panicboat
+	email = panicboat@gmail.com
+[init]
+	defaultBranch = main
+[rebase]
+	updateRefs = true
+[push]
+	default = current
+[fetch]
+	prune = true
+[status]
+	showUntrackedFiles = all
+[core]
+	autocrlf = input
+	filemode = false
+	ignorecase = false
+	editor = code --wait
+[interactive]
+	diffFilter = --color-only
+[merge]
+	conflictstyle = diff3
+[diff]
+	colorMoved = default
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[filter "lfs"]
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
