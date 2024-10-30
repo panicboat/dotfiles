@@ -18,6 +18,8 @@ alias tree='eza -T --git-ignore'
 alias diff='delta'
 alias rm='trash-put'
 
+alias k='kubectl'
+
 # initialization
 eval "$(starship init zsh)"
 
