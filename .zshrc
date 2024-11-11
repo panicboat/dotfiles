@@ -86,5 +86,5 @@ zle -N find_cd
 bindkey '^f' find_cd
 
 ## alias
-alias -g gb='`git branch | peco --prompt "GIT BRANCH>" | head -n 1 | sed -e "s/^\*\s*//g"`'
+alias -g gb='git checkout $(git branch | sed -r "s/^[ \*]+//" | peco)'
 alias de='docker exec -it $(docker ps | peco | cut -d " " -f 1) /bin/bash'
