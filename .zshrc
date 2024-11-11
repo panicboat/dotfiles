@@ -76,7 +76,7 @@ bindkey '^e' peco-cdr
 
 ## Search and move directories under the current directory
 function find_cd() {
-  local selected_dir=$(find . -type d | peco)
+  local selected_dir=$(find . -type d -name ".git*" -prune -prune -o -print | peco)
   if [ -n "$selected_dir" ]; then
     BUFFER="cd ${selected_dir}"
     zle accept-line
