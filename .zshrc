@@ -25,6 +25,8 @@ alias k='kubectl'
 
 # initialization
 eval "$(starship init zsh)"
+eval "$(rbenv init - zsh)"
+eval "$(goenv init -)"
 
 # aoutocompletion
 source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
