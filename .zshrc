@@ -25,6 +25,7 @@ alias k='kubectl'
 
 # initialization
 eval "$(starship init zsh)"
+eval "$(nodenv init - zsh)"
 eval "$(rbenv init - zsh)"
 eval "$(goenv init -)"
 
