@@ -25,9 +25,19 @@ alias k='kubectl'
 
 # initialization
 eval "$(starship init zsh)"
+# nodejs
 eval "$(nodenv init - zsh)"
+# ruby
+export PATH="$HOME/.rbenv/bin:$PATH"
 eval "$(rbenv init - zsh)"
+# go
+export GOENV_ROOT=$HOME/.goenv
+export PATH=$GOENV_ROOT/bin:$PATH
 eval "$(goenv init -)"
+# python
+export PYENV_ROOT="$HOME/.pyenv"
+[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init -)"
 
 # aoutocompletion
 source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
