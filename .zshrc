@@ -18,7 +18,6 @@ alias ll='eza --time-style=long-iso -hgl --git'
 alias la='eza --time-style=long-iso -ahgl --git'
 alias l1='eza -1'
 alias tree='eza -T --git-ignore'
-alias diff='delta'
 alias rm='trash-put'
 
 alias k='kubectl'
