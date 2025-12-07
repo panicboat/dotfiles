@@ -41,6 +41,8 @@ eval "$(pyenv init -)"
 # export DOCKER_HOST=unix://$(podman machine inspect | jq -r .[0].ConnectionInfo.PodmanSocket.Path)
 alias docker-stop='docker stop $(docker ps -q)'
 alias docker-prune='docker system prune -a -f --volumes'
+# Antigravity
+export PATH="$HOME/.antigravity/antigravity/bin:$PATH"
 
 # aoutocompletion
 source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
