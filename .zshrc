@@ -21,6 +21,7 @@ alias tree='eza -T --git-ignore'
 alias rm='trash-put'
 
 alias k='kubectl'
+alias terraform='eval $(aws configure export-credentials --format env) && terraform'
 
 # initialization
 eval "$(starship init zsh)"
