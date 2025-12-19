@@ -19,9 +19,7 @@ alias la='eza --time-style=long-iso -ahgl --git'
 alias l1='eza -1'
 alias tree='eza -T --git-ignore'
 alias rm='trash-put'
-
 alias k='kubectl'
-alias terraform='eval $(aws configure export-credentials --format env) && terraform'
 
 # initialization
 eval "$(starship init zsh)"
@@ -107,3 +105,22 @@ bindkey '^f' find_cd
 ## alias
 alias -g gb='git checkout $(git branch | sed -r "s/^[ \*]+//" | peco)'
 alias de='docker exec -it $(docker ps | peco | cut -d " " -f 1) /bin/bash'
+
+## function
+
+function aws-token() {
+  unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+  local credentials
+  credentials=$(aws configure export-credentials 2>/dev/null) || {
+    echo "Error: Failed to get AWS credentials" >&2
+    return 1
+  }
+  eval "$(jq -r '@sh "
+    export AWS_ACCESS_KEY_ID=\(.AccessKeyId)
+    export AWS_SECRET_ACCESS_KEY=\(.SecretAccessKey)
+    export AWS_SESSION_TOKEN=\(.SessionToken)
+  "' <<< "$credentials")" || {
+    echo "Error: Failed to parse credentials" >&2
+    return 1
+  }
+}
