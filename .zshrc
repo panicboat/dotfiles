@@ -37,11 +37,12 @@ export PYENV_ROOT="$HOME/.pyenv"
 [[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init -)"
 # docker
-# export DOCKER_HOST=unix://$(podman machine inspect | jq -r .[0].ConnectionInfo.PodmanSocket.Path)
 alias docker-stop='docker stop $(docker ps -q)'
 alias docker-prune='docker system prune -a -f --volumes && docker volume prune -a -f'
 # Antigravity
 export PATH="$HOME/.antigravity/antigravity/bin:$PATH"
+# aqua
+export PATH="${AQUA_ROOT_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/aquaproj-aqua}/bin:$PATH"
 
 # aoutocompletion
 source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
