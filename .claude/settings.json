@@ -1,11 +1,11 @@
 {
-  "defaultMode": "auto",
+  "statusLine": {
+    "type": "command",
+    "command": "$HOME/.claude/scripts/statusline.sh"
+  },
   "enabledPlugins": {
     "ruby-lsp@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true
   },
-  "statusLine": {
-    "type": "command",
-    "command": "$HOME/.claude/scripts/statusline.sh"
-  }
+  "defaultMode": "auto"
 }

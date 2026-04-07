@@ -86,6 +86,8 @@ usage=$(echo "$input" | jq '.context_window.current_usage')
 if [ "$usage" != "null" ]; then
     current=$(echo "$usage" | jq '.input_tokens + .cache_creation_input_tokens + .cache_read_input_tokens')
     size=$(echo "$input" | jq '.context_window.context_window_size')
+fi
+if [ "$usage" != "null" ] && [ -n "$size" ] && [ "$size" != "null" ] && [ "$size" -gt 0 ]; then
     ctx_pct=$(( (current * 100 + size / 2) / size ))
     ctx_color=$(get_color $ctx_pct "$GREEN")
     ctx_bar=$(make_progress_bar $ctx_pct 10)
