@@ -7,5 +7,6 @@
     "ruby-lsp@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true
   },
-  "defaultMode": "auto"
+  "defaultMode": "auto",
+  "skipDangerousModePermissionPrompt": true
 }
