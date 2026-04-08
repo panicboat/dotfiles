@@ -28,4 +28,10 @@
 ## Workflow
 
 - 実装に入る前に必ず「worktree を使うか」をユーザーに確認する
-- 現在のブランチが default branch の場合、変更前に新規ブランチを作成する
+- worktree を使う場合の運用ルール:
+  - リポジトリと同階層に `<repo>-<branch>` の形式でディレクトリを作成する（例: `panicboat/` に対して `panicboat-feat-login/`）
+  - 新規ブランチは default branch を base に作成する: `git worktree add -b <branch> ../<repo>-<branch> origin/<default-branch>`
+  - 既存ブランチをチェックアウトする場合は `-b` を省略する: `git worktree add ../<repo>-<branch> <branch>`
+  - 同じブランチを複数の worktree で同時にチェックアウトすることはできない（git の制約）
+  - 作業完了・マージ後は `git worktree remove <path>` で速やかに削除し、必要に応じて `git worktree prune` で残骸を整理する
+- worktree を使わない場合で、現在のブランチが default branch のときは、変更前に新規ブランチを作成するかユーザーに確認する
