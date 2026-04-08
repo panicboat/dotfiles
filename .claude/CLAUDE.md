@@ -27,12 +27,18 @@
 
 ## Workflow
 
-- 実装に入る前に必ず「worktree を使うか」をユーザーに確認する
-- worktree を使う場合の運用ルール:
-  - リポジトリ内の `.worktrees/<branch>` にディレクトリを作成する（例: `platform/.worktrees/feat-login/`）
-  - 初回利用時は `.git/info/exclude` に `/.worktrees/` を追加しておくこと（個人ローカルでの除外）
-  - 新規ブランチは default branch を base に作成する: `git worktree add -b <branch> .worktrees/<branch> origin/<default-branch>`
-  - 既存ブランチをチェックアウトする場合は `-b` を省略する: `git worktree add .worktrees/<branch> <branch>`
-  - 同じブランチを複数の worktree で同時にチェックアウトすることはできない（git の制約）
-  - 作業完了・マージ後は `git worktree remove .worktrees/<branch>` で速やかに削除し、必要に応じて `git worktree prune` で残骸を整理する
-- worktree を使わない場合で、現在のブランチが default branch のときは、変更前に新規ブランチを作成するかユーザーに確認する
+実装に入る前に、以下のいずれかを選択するようユーザーに確認する:
+
+1. worktree を使って進める
+2. worktree を使わず新規ブランチを作成して進める
+3. このブランチで進める
+4. 任意入力（上記以外の方法をユーザーが指定）
+
+### worktree を使う場合の運用ルール
+
+- リポジトリ内の `.worktrees/<branch>` にディレクトリを作成する（例: `platform/.worktrees/feat-login/`）
+- 初回利用時は `.git/info/exclude` に `/.worktrees/` を追加しておく（個人ローカルでの除外）
+- 新規ブランチは default branch を base に作成する: `git worktree add -b <branch> .worktrees/<branch> origin/<default-branch>`
+- 既存ブランチをチェックアウトする場合は `-b` を省略する: `git worktree add .worktrees/<branch> <branch>`
+- 同じブランチを複数の worktree で同時にチェックアウトすることはできない（git の制約）
+- 作業完了・マージ後は `git worktree remove .worktrees/<branch>` で削除し、必要に応じて `git worktree prune` で残骸を整理する
