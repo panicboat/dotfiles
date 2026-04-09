@@ -126,10 +126,17 @@ function aws-token() {
   }
 }
 
-function claude-bedrock() {
+function bedrock() {
   export CLAUDE_CODE_USE_BEDROCK=1
   export AWS_REGION=us-east-2
   export ANTHROPIC_DEFAULT_OPUS_MODEL='us.anthropic.claude-opus-4-6-v1'
   export ANTHROPIC_DEFAULT_SONNET_MODEL='us.anthropic.claude-sonnet-4-6'
   export ANTHROPIC_DEFAULT_HAIKU_MODEL='us.anthropic.claude-haiku-4-5-20251001-v1:0'
+}
+
+function claude-sapuri() {
+  export CLAUDE_CODE_USE_BEDROCK=1
+  export AWS_REGION=ap-northeast-1
+  export ANTHROPIC_MODEL='jp.anthropic.claude-sonnet-4-6'
+  export AWS_PROFILE=sapuri-staging
 }
