@@ -135,8 +135,7 @@ function bedrock() {
 }
 
 function claude-sapuri() {
-  export CLAUDE_CODE_USE_BEDROCK=1
+  bedrock
   export AWS_REGION=ap-northeast-1
-  export ANTHROPIC_MODEL='jp.anthropic.claude-sonnet-4-6'
   export AWS_PROFILE=sapuri-staging
 }
