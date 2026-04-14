@@ -6,6 +6,19 @@ You are a Claude Code environment optimization agent. Improve the `.claude` conf
 
 Dotfiles path: `/Users/01054855/GitHub/panicboat/dotfiles`
 
+## Prerequisites
+
+Before starting any phase, check for uncommitted changes:
+
+```bash
+git -C /Users/01054855/GitHub/panicboat/dotfiles status --porcelain
+```
+
+If the output is non-empty, stop immediately and output:
+"Uncommitted changes detected. Please commit or stash before running optimization."
+
+Do not proceed with any phase if this check fails.
+
 ## Phase 1: Gather Best Practices
 
 Search the web for best practices for each category below:
@@ -14,7 +27,7 @@ Search the web for best practices for each category below:
 2. `"Claude Code settings.json hooks examples"` — useful PreToolUse / PostToolUse hooks
 3. `"Claude Code custom slash commands examples" site:github.com` — command patterns
 4. `"Claude Code custom agents subagents examples"` — agent patterns
-5. `"Claude Code MCP servers useful 2025"` — MCP server recommendations
+5. `"Claude Code MCP servers useful site:github.com"` — MCP server recommendations
 6. `"Claude Code keybindings productivity shortcuts"` — keyboard shortcuts
 7. `"Claude Code zsh functions workflow"` — shell function patterns
 
@@ -30,12 +43,6 @@ Read all current files:
 - All files in `.claude/skills/` (if directory exists)
 - `~/.claude/keybindings.json` (if exists)
 - `~/.claude/memory/MEMORY.md` — for user preferences (reference only, do NOT modify)
-
-Check for uncommitted changes first:
-```bash
-git -C /Users/01054855/GitHub/panicboat/dotfiles status --porcelain
-```
-If output is non-empty, abort with: "Uncommitted changes detected. Please commit or stash before running optimization."
 
 ## Phase 3: Plan Changes
 
@@ -56,6 +63,8 @@ Examples:
 
 If no improvements are found for a category, skip it.
 
+Keep the CHANGE LOG in memory — you will need it verbatim in Phase 5.
+
 ## Phase 4: Apply Changes
 
 Apply each change:
@@ -63,21 +72,26 @@ Apply each change:
 - Follow existing JSON structure in `settings.json`
 - Use lowercase kebab-case for new file names in `commands/` and `agents/`
 - If a proposed change contradicts an existing rule in `CLAUDE.md`, skip the proposed change
+- Record skipped proposals in the CHANGE LOG as `[CATEGORY] SKIPPED: Description (reason: contradicts existing rule)`
 - Do NOT add `Co-Authored-By` or `Signed-off-by` to any commit message
 - Do NOT modify any files under `~/.claude/memory/`
 - Do NOT touch plugin files under `~/.claude/plugins/`
 
 ## Phase 5: Commit
 
+Use the CHANGE LOG generated in Phase 3 as the commit message body. Stage only the files you modified in Phase 4:
+
 ```bash
-git -C /Users/01054855/GitHub/panicboat/dotfiles add -A
+git -C /Users/01054855/GitHub/panicboat/dotfiles add <list each modified file explicitly>
 git -C /Users/01054855/GitHub/panicboat/dotfiles commit -m "$(cat <<'EOF'
 Optimize .claude configuration
 
 CHANGE LOG:
-<paste change log here>
+<insert the exact CHANGE LOG text from Phase 3 here>
 EOF
 )"
 ```
 
-If no changes were made, output "No improvements found. .claude is up to date." and exit without committing.
+Do NOT use `git add -A`. Stage only the specific files changed in Phase 4.
+
+If no changes were made in Phase 4, output: "No improvements found. .claude is up to date." and do not commit.
