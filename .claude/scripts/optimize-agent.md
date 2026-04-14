@@ -83,12 +83,21 @@ Apply each change:
 - Do NOT modify any files under `~/.claude/memory/`
 - Do NOT touch plugin files under `~/.claude/plugins/`
 
-## Phase 5: Commit
+## Phase 5: Create Pull Request
 
-Use the CHANGE LOG generated in Phase 3 as the commit message body. Stage only the files you modified in Phase 4:
+If no changes were made in Phase 4, output: "No improvements found. .claude is up to date." and stop.
+
+Otherwise, create a branch, commit, and open a PR:
 
 ```bash
+# Create branch (use timestamp to avoid conflicts)
+branch="optimize/$(date +%Y%m%d-%H%M)"
+git -C "$DOTFILES" checkout -b "$branch"
+
+# Stage only the files changed in Phase 4 (do NOT use git add -A)
 git -C "$DOTFILES" add <list each modified file explicitly>
+
+# Commit with the CHANGE LOG from Phase 3 as the body
 git -C "$DOTFILES" commit -m "$(cat <<'EOF'
 Optimize .claude configuration
 
@@ -96,8 +105,19 @@ CHANGE LOG:
 <insert the exact CHANGE LOG text from Phase 3 here>
 EOF
 )"
+
+# Push branch and open PR
+git -C "$DOTFILES" push origin "$branch"
+gh pr create \
+  --base main \
+  --title "Optimize .claude configuration ($(date +%Y-%m-%d))" \
+  --body "$(cat <<'EOF'
+## Change Log
+
+<insert the exact CHANGE LOG text from Phase 3 here>
+EOF
+)"
+
+# Return to main
+git -C "$DOTFILES" checkout main
 ```
-
-Do NOT use `git add -A`. Stage only the specific files changed in Phase 4.
-
-If no changes were made in Phase 4, output: "No improvements found. .claude is up to date." and do not commit.
