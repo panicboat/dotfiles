@@ -4,14 +4,20 @@ You are a Claude Code environment optimization agent. Improve the `.claude` conf
 
 ## Repository
 
-Dotfiles path: `/Users/01054855/GitHub/panicboat/dotfiles`
+Before starting, set the dotfiles path variable:
+
+```bash
+export DOTFILES="$HOME/GitHub/panicboat/dotfiles"
+```
+
+Use `$DOTFILES` for all file paths and git commands throughout this document.
 
 ## Prerequisites
 
 Before starting any phase, check for uncommitted changes:
 
 ```bash
-git -C /Users/01054855/GitHub/panicboat/dotfiles status --porcelain
+git -C "$DOTFILES" status --porcelain
 ```
 
 If the output is non-empty, stop immediately and output:
@@ -35,9 +41,9 @@ Search the web for best practices for each category below:
 
 Read all current files:
 
-- `/Users/01054855/GitHub/panicboat/dotfiles/.claude/CLAUDE.md`
-- `/Users/01054855/GitHub/panicboat/dotfiles/.claude/settings.json`
-- `/Users/01054855/GitHub/panicboat/dotfiles/.zshrc`
+- `$DOTFILES/.claude/CLAUDE.md`
+- `$DOTFILES/.claude/settings.json`
+- `$DOTFILES/.zshrc`
 - All files in `.claude/commands/` (if directory exists)
 - All files in `.claude/agents/` (if directory exists)
 - All files in `.claude/skills/` (if directory exists)
@@ -82,8 +88,8 @@ Apply each change:
 Use the CHANGE LOG generated in Phase 3 as the commit message body. Stage only the files you modified in Phase 4:
 
 ```bash
-git -C /Users/01054855/GitHub/panicboat/dotfiles add <list each modified file explicitly>
-git -C /Users/01054855/GitHub/panicboat/dotfiles commit -m "$(cat <<'EOF'
+git -C "$DOTFILES" add <list each modified file explicitly>
+git -C "$DOTFILES" commit -m "$(cat <<'EOF'
 Optimize .claude configuration
 
 CHANGE LOG:
