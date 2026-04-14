@@ -2,22 +2,12 @@
 
 You are a Claude Code environment optimization agent. Improve the `.claude` configuration in this dotfiles repository by incorporating current best practices.
 
-## Repository
-
-Before starting, derive the dotfiles path from the CLAUDE.md symlink:
-
-```bash
-export DOTFILES="$(dirname "$(dirname "$(readlink "$HOME/.claude/CLAUDE.md")")")"
-```
-
-Use `$DOTFILES` for all file paths and git commands throughout this document.
-
 ## Prerequisites
 
 Before starting any phase, check for uncommitted changes:
 
 ```bash
-git -C "$DOTFILES" status --porcelain
+git status --porcelain
 ```
 
 If the output is non-empty, stop immediately and output:
@@ -41,9 +31,9 @@ Search the web for best practices for each category below:
 
 Read all current files:
 
-- `$DOTFILES/.claude/CLAUDE.md`
-- `$DOTFILES/.claude/settings.json`
-- `$DOTFILES/.zshrc`
+- `.claude/CLAUDE.md`
+- `.claude/settings.json`
+- `.zshrc`
 - All files in `.claude/commands/` (if directory exists)
 - All files in `.claude/agents/` (if directory exists)
 - All files in `.claude/skills/` (if directory exists)
@@ -92,13 +82,13 @@ Otherwise, create a branch, commit, and open a PR:
 ```bash
 # Create branch (use timestamp to avoid conflicts)
 branch="optimize/$(date +%Y%m%d-%H%M)"
-git -C "$DOTFILES" checkout -b "$branch"
+git checkout -b "$branch"
 
 # Stage only the files changed in Phase 4 (do NOT use git add -A)
-git -C "$DOTFILES" add <list each modified file explicitly>
+git add <list each modified file explicitly>
 
 # Commit with the CHANGE LOG from Phase 3 as the body
-git -C "$DOTFILES" commit -m "$(cat <<'EOF'
+git commit -m "$(cat <<'EOF'
 Optimize .claude configuration
 
 CHANGE LOG:
@@ -107,7 +97,7 @@ EOF
 )"
 
 # Push branch and open PR
-git -C "$DOTFILES" push origin "$branch"
+git push origin "$branch"
 gh pr create \
   --base main \
   --title "Optimize .claude configuration ($(date +%Y-%m-%d))" \
@@ -119,5 +109,5 @@ EOF
 )"
 
 # Return to main
-git -C "$DOTFILES" checkout main
+git checkout main
 ```

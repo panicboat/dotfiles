@@ -1,3 +1,6 @@
+# dotfiles
+export DOTFILES="$(dirname "$(dirname "$(readlink "$HOME/.claude/CLAUDE.md")")")"
+
 # no match found
 setopt +o nomatch
 
@@ -135,11 +138,10 @@ function bedrock() {
 }
 
 function claude-optimize() {
-  local dotfiles="$(dirname "$(dirname "$(readlink "$HOME/.claude/CLAUDE.md")")")"
-  local prompt_file="$dotfiles/.claude/scripts/optimize-agent.md"
+  local prompt_file="$DOTFILES/.claude/scripts/optimize-agent.md"
   if [[ ! -f "$prompt_file" ]]; then
     echo "Error: optimize-agent.md not found at $prompt_file" >&2
     return 1
   fi
-  claude "$(cat "$prompt_file")"
+  claude --cwd "$DOTFILES" "$(cat "$prompt_file")"
 }

@@ -34,8 +34,7 @@ conversation=$(jq -r '
 
 [[ -z "$conversation" ]] && exit 0
 
-dotfiles="$(dirname "$(dirname "$(readlink "$HOME/.claude/CLAUDE.md")")")"
-claude_md="$(cat "$dotfiles/.claude/CLAUDE.md")"
+claude_md="$(cat "$DOTFILES/.claude/CLAUDE.md")"
 
 prompt="You are reviewing a Claude Code session. Suggest rules to add to CLAUDE.md based on patterns observed.
 

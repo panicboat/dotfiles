@@ -1,1 +1,1 @@
-Run `dirname "$(dirname "$(readlink "$HOME/.claude/CLAUDE.md")")"` to get the dotfiles path, then read the file at `<dotfiles>/.claude/scripts/optimize-agent.md` and execute all instructions in it exactly as written.
+Read the file at `$DOTFILES/.claude/scripts/optimize-agent.md` and execute all instructions in it exactly as written.
