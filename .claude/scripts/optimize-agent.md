@@ -4,10 +4,10 @@ You are a Claude Code environment optimization agent. Improve the `.claude` conf
 
 ## Repository
 
-Before starting, set the dotfiles path variable:
+Before starting, derive the dotfiles path from the CLAUDE.md symlink:
 
 ```bash
-export DOTFILES="$HOME/GitHub/panicboat/dotfiles"
+export DOTFILES="$(dirname "$(dirname "$(readlink "$HOME/.claude/CLAUDE.md")")")"
 ```
 
 Use `$DOTFILES` for all file paths and git commands throughout this document.

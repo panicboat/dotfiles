@@ -135,7 +135,8 @@ function bedrock() {
 }
 
 function claude-optimize() {
-  local prompt_file="$HOME/GitHub/panicboat/dotfiles/.claude/scripts/optimize-agent.md"
+  local dotfiles="$(dirname "$(dirname "$(readlink "$HOME/.claude/CLAUDE.md")")")"
+  local prompt_file="$dotfiles/.claude/scripts/optimize-agent.md"
   if [[ ! -f "$prompt_file" ]]; then
     echo "Error: optimize-agent.md not found at $prompt_file" >&2
     return 1
