@@ -1,7 +1,7 @@
 {
   "statusLine": {
     "type": "command",
-    "command": "GIT_OPTIONAL_LOCKS=0 $HOME/.claude/scripts/statusline.sh"
+    "command": "$HOME/.claude/scripts/statusline.sh"
   },
   "enabledPlugins": {
     "ruby-lsp@claude-plugins-official": true,
@@ -11,7 +11,9 @@
   "env": {
     "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1"
   },
-  "skipDangerousModePermissionPrompt": true,
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  },
   "hooks": {
     "SessionEnd": [
       {
