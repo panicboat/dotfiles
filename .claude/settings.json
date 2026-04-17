@@ -1,7 +1,7 @@
 {
   "statusLine": {
     "type": "command",
-    "command": "$HOME/.claude/scripts/statusline.sh"
+    "command": "GIT_OPTIONAL_LOCKS=0 $HOME/.claude/scripts/statusline.sh"
   },
   "enabledPlugins": {
     "ruby-lsp@claude-plugins-official": true,

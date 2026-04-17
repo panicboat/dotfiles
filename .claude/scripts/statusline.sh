@@ -53,13 +53,13 @@ fi
 # Git状態取得
 git_str=""
 if [ -n "$cwd" ]; then
-    if git -C "$cwd" rev-parse --git-dir >/dev/null 2>&1; then
-        branch=$(git -C "$cwd" branch --show-current 2>/dev/null)
+    if git --no-optional-locks -C "$cwd" rev-parse --git-dir >/dev/null 2>&1; then
+        branch=$(git --no-optional-locks -C "$cwd" branch --show-current 2>/dev/null)
         if [ -z "$branch" ]; then
-            branch=$(git -C "$cwd" rev-parse --short HEAD 2>/dev/null)
+            branch=$(git --no-optional-locks -C "$cwd" rev-parse --short HEAD 2>/dev/null)
         fi
         if [ -n "$branch" ]; then
-            if [ -n "$(git -C "$cwd" status --porcelain 2>/dev/null)" ]; then
+            if [ -n "$(git --no-optional-locks -C "$cwd" status --porcelain 2>/dev/null)" ]; then
                 git_str="${MAGENTA}⎇ ${branch}${YELLOW}*${RESET}"
             else
                 git_str="${GREEN}⎇ ${branch}${RESET}"
