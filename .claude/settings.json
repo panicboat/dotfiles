@@ -35,6 +35,5 @@
     "ruby-lsp@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true
   },
-  "effortLevel": "high",
-  "skipAutoPermissionPrompt": true
+  "effortLevel": "high"
 }
