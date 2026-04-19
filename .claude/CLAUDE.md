@@ -58,9 +58,9 @@
 
 ### worktree を使う場合の運用ルール
 
-- リポジトリ内の `.worktrees/<branch>` にディレクトリを作成する（例: `platform/.worktrees/feat-login/`）
-- 初回利用時は `.git/info/exclude` に `/.worktrees/` を追加しておく（個人ローカルでの除外）
-- 新規ブランチは default branch を base に作成する: `git worktree add -b <branch> .worktrees/<branch> origin/<default-branch>`
-- 既存ブランチをチェックアウトする場合は `-b` を省略する: `git worktree add .worktrees/<branch> <branch>`
+- リポジトリ内の `.claude/worktrees/<branch>` にディレクトリを作成する（例: `platform/.claude/worktrees/feat-login/`）
+- 初回利用時は `.git/info/exclude` に `/.claude/worktrees/` を追加しておく（個人ローカルでの除外）
+- 新規ブランチは default branch を base に作成する: `git worktree add -b <branch> .claude/worktrees/<branch> origin/<default-branch>`
+- 既存ブランチをチェックアウトする場合は `-b` を省略する: `git worktree add .claude/worktrees/<branch> <branch>`
 - 同じブランチを複数の worktree で同時にチェックアウトすることはできない（git の制約）
-- 作業完了・マージ後は `git worktree remove .worktrees/<branch>` で削除し、必要に応じて `git worktree prune` で残骸を整理する
+- 作業完了・マージ後は `git worktree remove .claude/worktrees/<branch>` で削除し、必要に応じて `git worktree prune` で残骸を整理する
