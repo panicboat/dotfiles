@@ -45,7 +45,7 @@
 ## Git
 
 - コミットメッセージに `Co-Authored-By` を付与することを禁止
-- コミットメッセージに `Signed-off-by: <git user.name> <git user.email>` を付与する
+- コミット時に `-s`（`--signoff`）オプションを使用する
 
 ## Workflow
 
