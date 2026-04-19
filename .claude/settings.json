@@ -5,35 +5,14 @@
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
-  "hooks": {
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/scripts/suggest-claude-md.sh"
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/scripts/suggest-claude-md.sh"
-          }
-        ]
-      }
-    ]
+
+  "enabledPlugins": {
+    "ruby-lsp@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true
   },
   "statusLine": {
     "type": "command",
     "command": "$HOME/.claude/scripts/statusline.sh"
-  },
-  "enabledPlugins": {
-    "ruby-lsp@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true
   },
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true
