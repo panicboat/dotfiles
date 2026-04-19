@@ -1,19 +1,18 @@
 {
+  "model": "claude-opus-4-7",
   "env": {
     "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1"
   },
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
-
-  "enabledPlugins": {
-    "ruby-lsp@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true
-  },
   "statusLine": {
     "type": "command",
     "command": "$HOME/.claude/scripts/statusline.sh"
   },
-  "effortLevel": "high",
+  "enabledPlugins": {
+    "ruby-lsp@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true
+  },
   "skipDangerousModePermissionPrompt": true
 }
