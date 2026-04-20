@@ -1,6 +1,6 @@
 #!/bin/bash
 # Claude Code statusLine スクリプト
-# 制限使用率 + 残り時間 + コンテキスト使用率 + Git状態 + ディレクトリ（絵文字・色付き）
+# 制限使用率 + 残り時間 + コンテキスト使用率 + APIコスト + Git状態 + ディレクトリ（絵文字・色付き）
 # v2.1.80+ rate_limits フィールド対応版
 
 GIT_OPTIONAL_LOCKS=0
@@ -82,6 +82,48 @@ make_progress_bar() {
     echo "$bar"
 }
 
+# APIコスト（cost.total_cost_usd を直接使用 + 月次・5h ウィンドウ集計）
+cost_str=""
+session_id=$(echo "$input" | jq -r '.session_id // empty')
+total_cost=$(echo "$input" | jq -r '.cost.total_cost_usd // empty')
+cost_db="$HOME/.claude/api_usage_costs.tsv"
+now=$(date +%s)
+
+if [ -n "$total_cost" ] && [ -n "$session_id" ]; then
+    # 現在のセッションを upsert（既存行を置換、なければ追加）
+    if [ -f "$cost_db" ]; then
+        tmp=$(mktemp)
+        grep -v "^${session_id}	" "$cost_db" > "$tmp" 2>/dev/null || true
+        echo -e "${session_id}\t${now}\t${total_cost}" >> "$tmp"
+        mv "$tmp" "$cost_db"
+    else
+        echo -e "${session_id}\t${now}\t${total_cost}" > "$cost_db"
+    fi
+
+    # 月次合計（当月のエントリを集計）
+    month_start=$(date -j -f "%Y-%m-%d" "$(date +%Y-%m-01)" +%s 2>/dev/null || date -d "$(date +%Y-%m-01)" +%s)
+    monthly_total=$(awk -v ms="$month_start" -F'\t' '$2 >= ms {sum += $3} END {printf "%.4f", sum+0}' "$cost_db")
+
+    # 5時間ウィンドウ合計
+    window_start=$((now - 18000))
+    window_total=$(awk -v ws="$window_start" -F'\t' '$2 >= ws {sum += $3} END {printf "%.4f", sum+0}' "$cost_db")
+
+    fmt_cost() {
+        echo "$1" | awk '{
+            if ($1 < 0.0001) print "<$0.0001"
+            else if ($1 < 0.01) printf "$%.4f", $1
+            else if ($1 < 1.0) printf "$%.3f", $1
+            else printf "$%.2f", $1
+        }'
+    }
+
+    session_display=$(fmt_cost "$total_cost")
+    monthly_display=$(fmt_cost "$monthly_total")
+    window_display=$(fmt_cost "$window_total")
+
+    cost_str="💰 Session ${CYAN}${session_display}${RESET}  5h ${CYAN}${window_display}${RESET}  $(date +%b) ${CYAN}${monthly_display}${RESET}"
+fi
+
 # コンテキスト使用率計算 - ベースカラー: 緑
 ctx_str=""
 usage=$(echo "$input" | jq '.context_window.current_usage')
@@ -134,3 +176,4 @@ echo -e "$line1"
 [ -n "$five_hour_str" ] && echo -e "$five_hour_str"
 [ -n "$seven_day_str" ] && echo -e "$seven_day_str"
 [ -n "$ctx_str" ] && echo -e "$ctx_str"
+[ -n "$cost_str" ] && echo -e "$cost_str"
