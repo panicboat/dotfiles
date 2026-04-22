@@ -46,6 +46,7 @@
 
 - コミットメッセージに `Co-Authored-By` を付与することを禁止
 - コミット時に `-s`（`--signoff`）オプションを使用する
+- PR は必ず Draft で作成する（`gh pr create --draft`）
 
 ## Workflow
 
