@@ -136,12 +136,3 @@ function bedrock() {
   export ANTHROPIC_DEFAULT_SONNET_MODEL='us.anthropic.claude-sonnet-4-6'
   export ANTHROPIC_DEFAULT_HAIKU_MODEL='us.anthropic.claude-haiku-4-5-20251001-v1:0'
 }
-
-function claude-optimize() {
-  local prompt_file="$DOTFILES/.claude/scripts/optimize-agent.md"
-  if [[ ! -f "$prompt_file" ]]; then
-    echo "Error: optimize-agent.md not found at $prompt_file" >&2
-    return 1
-  fi
-  claude --cwd "$DOTFILES" "$(cat "$prompt_file")"
-}
