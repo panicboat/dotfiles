@@ -47,6 +47,8 @@
 - コミットメッセージに `Co-Authored-By` を付与することを禁止
 - コミット時に `-s`（`--signoff`）オプションを使用する
 - PR は必ず Draft で作成する（`gh pr create --draft`）
+- 新規ブランチの初回 push は必ず `git push -u origin HEAD` でトラッキングを設定する
+  - `git checkout -b <branch> origin/<base>` で作成すると upstream が base ブランチに自動設定されるが、初回 push 時に `-u origin HEAD` で上書きされるため問題ない
 
 ## Workflow
 
