@@ -15,15 +15,13 @@
 
 ### Think Before Coding
 
-- 新機能実装前に類似機能を調査し、既存パターンに従う
-- 推測でコードを書かず、既存の実装を読んでから書く
+- 新機能実装前に類似機能・既存実装を読んでからパターンに従う（推測で書かない）
 - 実装前にトレードオフを明示し、複数のアプローチを比較検討する
 
 ### Simplicity First
 
-- 不要な抽象化・ヘルパー関数・ユーティリティを作らない
+- 不要な抽象化・ヘルパー関数・ユーティリティを作らない（YAGNI: 将来の仮定のために設計しない）
 - 頼まれていない依存関係を追加しない
-- 将来の仮定のために設計しない（YAGNI）
 
 ### Surgical Changes
 
@@ -48,7 +46,6 @@
 - コミット時に `-s`（`--signoff`）オプションを使用する
 - PR は必ず Draft で作成する（`gh pr create --draft`）
 - 新規ブランチの初回 push は必ず `git push -u origin HEAD` でトラッキングを設定する
-  - `git checkout -b <branch> origin/<base>` で作成すると upstream が base ブランチに自動設定されるが、初回 push 時に `-u origin HEAD` で上書きされるため問題ない
 
 ## Workflow
 
