@@ -11,5 +11,6 @@
     "superpowers@claude-plugins-official": true
   },
   "effortLevel": "xhigh",
+  "useAutoModeDuringPlan": true,
   "skipDangerousModePermissionPrompt": true
 }
