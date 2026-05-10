@@ -11,6 +11,13 @@
 - 現在の状態を表す名前をつける（変更履歴をコメントやメソッド名に含めない）
 - 比較表現（"simple", "complex", "easy", "hard" など）を避ける
 
+## Documentation
+
+- "what"（現在の状態・動作）と "why"（その状態を選んだ理由）を書く。"when"（変更履歴）と "future"（未来予定）は書かない
+- "why" には非自明な技術制約・bug 回避・互換性・パフォーマンス特性など、それを知らないと現在の構成を理解できない情報を含める（例: "chart v82 の RBAC bug 回避のため X を disable"）
+- "when"（= 「Plan N で導入」「PR #N で撤去済」等）は Git history に、"future"（= 「Phase 5 で投入予定」等）は plan / spec ドキュメントに任せる
+- これは README / design doc / コードコメント全般に適用
+
 ## Implementation
 
 ### Think Before Coding
