@@ -17,6 +17,7 @@
 - "why" には非自明な技術制約・bug 回避・互換性・パフォーマンス特性など、それを知らないと現在の構成を理解できない情報を含める（例: "chart v82 の RBAC bug 回避のため X を disable"）
 - "when"（= 「Plan N で導入」「PR #N で撤去済」等）は Git history に、"future"（= 「Phase 5 で投入予定」等）は plan / spec ドキュメントに任せる
 - これは README / design doc / コードコメント全般に適用
+- source-of-truth（helmfile / lockfile / Terraform / cluster config 等）で取得できる値は書かない。設計意図に基づく安定値（retention・mode・識別子 等）は書く
 
 ## Implementation
 
