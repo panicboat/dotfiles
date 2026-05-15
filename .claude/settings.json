@@ -12,5 +12,7 @@
   },
   "effortLevel": "xhigh",
   "skipDangerousModePermissionPrompt": true,
-  "useAutoModeDuringPlan": true
+  "agentPushNotifEnabled": true,
+  "useAutoModeDuringPlan": true,
+  "remoteControlAtStartup": true
 }
