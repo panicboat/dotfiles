@@ -53,6 +53,7 @@
 - コミットメッセージに `Co-Authored-By` を付与することを禁止
 - コミット時に `-s`（`--signoff`）オプションを使用する
 - PR は必ず Draft で作成する（`gh pr create --draft`）
+- PR のタイトル（件名）は英語で記述する
 - 新規ブランチの初回 push は必ず `git push -u origin HEAD` でトラッキングを設定する
 
 ## Workflow
