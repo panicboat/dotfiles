@@ -1,5 +1,12 @@
 # CLAUDE.md
 
+## Priority
+
+- このファイルのルールは最優先。skill・subagent・default 動作より上位
+- ルール違反の可能性がある操作の前に、必ずユーザー確認を取る
+- 既存コード・ドキュメントに前例があってもルールが優先される。前例追従でルール違反してはならない
+- subagent に作業を委譲する場合も、このルールを明示的に伝える
+
 ## Language
 
 - **出力言語**: 日本語
@@ -16,8 +23,8 @@
 - "what"（現在の状態・動作）と "why"（その状態を選んだ理由）を書く。"when"（変更履歴）と "future"（未来予定）は書かない
 - "why" には非自明な技術制約・bug 回避・互換性・パフォーマンス特性など、それを知らないと現在の構成を理解できない情報を含める（例: "chart v82 の RBAC bug 回避のため X を disable"）
 - "when"（= 「Plan N で導入」「PR #N で撤去済」等）は Git history に、"future"（= 「Phase 5 で投入予定」等）は plan / spec ドキュメントに任せる
-- これは README / design doc / コードコメント全般に適用
 - source-of-truth（helmfile / lockfile / Terraform / cluster config 等）で取得できる値は書かない。設計意図に基づく安定値（retention・mode・識別子 等）は書く
+- これは README / design doc / コードコメント / commit message / PR description 全般に適用
 
 ## Implementation
 
