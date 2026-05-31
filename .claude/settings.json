@@ -10,9 +10,10 @@
     "ruby-lsp@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true
   },
-  "effortLevel": "xhigh",
-  "skipDangerousModePermissionPrompt": true,
   "agentPushNotifEnabled": true,
-  "useAutoModeDuringPlan": true,
-  "remoteControlAtStartup": true
+  "effortLevel": "xhigh",
+  "inputNeededNotifEnabled": true,
+  "remoteControlAtStartup": true,
+  "skipDangerousModePermissionPrompt": true,
+  "useAutoModeDuringPlan": true
 }
