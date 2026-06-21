@@ -9,13 +9,20 @@
   "enabledPlugins": {
     "ruby-lsp@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true,
-    "agmsg@fujibee-agmsg": true
+    "agmsg@fujibee-agmsg": true,
+    "pixelbrowse@pixelrag-plugins": true
   },
   "extraKnownMarketplaces": {
     "fujibee-agmsg": {
       "source": {
         "source": "github",
         "repo": "fujibee/agmsg"
+      }
+    },
+    "pixelrag-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "StarTrail-org/PixelRAG"
       }
     }
   },
