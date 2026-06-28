@@ -2,6 +2,7 @@
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
+  "model": "claude-opus-4-7",
   "statusLine": {
     "type": "command",
     "command": "$HOME/.claude/scripts/statusline.sh"
