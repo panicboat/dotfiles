@@ -1,10 +1,10 @@
 {
-  "permissions": {
-    "defaultMode": "bypassPermissions"
-  },
   "model": "claude-opus-4-7",
   "env": {
     "CLAUDE_CODE_SUBAGENT_MODEL": "claude-sonnet-5"
+  },
+  "permissions": {
+    "defaultMode": "bypassPermissions"
   },
   "statusLine": {
     "type": "command",
