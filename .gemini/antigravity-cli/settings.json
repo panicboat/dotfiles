@@ -1,3 +1,4 @@
 {
-  "colorScheme": "tokyo night"
+  "colorScheme": "tokyo night",
+  "toolPermission": "always-proceed"
 }
