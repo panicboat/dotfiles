@@ -1,5 +1,4 @@
 {
-  "model": "claude-opus-4-7",
   "env": {
     "CLAUDE_CODE_SUBAGENT_MODEL": "claude-sonnet-5"
   },
@@ -14,7 +13,8 @@
     "ruby-lsp@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true,
     "agmsg@fujibee-agmsg": true,
-    "pixelbrowse@pixelrag-plugins": true
+    "pixelbrowse@pixelrag-plugins": true,
+    "compact-plus@compact-plus": true
   },
   "extraKnownMarketplaces": {
     "fujibee-agmsg": {
@@ -27,6 +27,12 @@
       "source": {
         "source": "github",
         "repo": "StarTrail-org/PixelRAG"
+      }
+    },
+    "compact-plus": {
+      "source": {
+        "source": "github",
+        "repo": "u-ichi/compact-plus"
       }
     }
   },
