@@ -110,7 +110,7 @@ alias de='docker exec -it $(docker ps | peco | cut -d " " -f 1) /bin/bash'
 ## function
 
 function codex() {
-  ~/.agents/skills/agmsg/scripts/drivers/types/codex/codex-shim.sh "$@"
+  $HOME/.agents/skills/agmsg/scripts/drivers/types/codex/codex-shim.sh "$@"
 }
 
 function aws-token() {
