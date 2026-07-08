@@ -109,6 +109,10 @@ alias de='docker exec -it $(docker ps | peco | cut -d " " -f 1) /bin/bash'
 
 ## function
 
+function codex() {
+  ~/.agents/skills/agmsg/scripts/drivers/types/codex/codex-shim.sh "$@"
+}
+
 function aws-token() {
   unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
   local credentials
