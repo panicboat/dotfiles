@@ -20,15 +20,19 @@
 
 ## Documentation
 
-- 各媒体は答えるべき問いが異なる。同じ情報を複数の媒体に重複させない
-  - コード → How（どう実現するか。実装そのものが語る）
-  - テストコード → What（何をすべきか＝振る舞い・仕様。テスト名とアサーションで表す）
-  - コミットログ → Why（なぜこの変更をしたか＝背景・意思決定）
-  - コードコメント → Why not（なぜ "他のやり方" を採らなかったか＝制約・落とし穴・非自明な理由）
-- 散文ドキュメント（README / design doc）は "what"（現在の状態・動作）と "why"（選んだ理由）を書く。コードコメントは自明な "what" を避け "why / why not" に集中する
+各媒体は答えるべき問いが異なる。同じ情報を複数の媒体に重複させない。
+
+- コード → How（どう実現するか。実装そのものが語る）
+- テストコード → What（何をすべきか＝振る舞い・仕様。テスト名とアサーションで表す）
+- コミットログ / PR description → Why（なぜこの変更をしたか＝背景・意思決定）
+- コードコメント → Why not（なぜ "他のやり方" を採らなかったか＝制約・落とし穴。自明な "what" は書かない）
+- README / design doc → What（現在の状態・動作）と Why（選んだ理由）
+
+共通ルール:
+
 - "why" には非自明な技術制約・bug 回避・互換性・パフォーマンス特性など、それを知らないと現在の構成を理解できない情報を含める（例: "chart v82 の RBAC bug 回避のため X を disable"）
-- 書かない: "when"（変更履歴）は Git history に、"future"（未来予定）は plan / spec ドキュメントに任せる。source-of-truth（helmfile / lockfile / Terraform 等）で取得できる値も書かない（ただし設計意図に基づく安定値＝retention・mode・識別子 等は書く）
-- 適用範囲: README / design doc / コードコメント / commit message / PR description
+- "when"（変更履歴）は Git history に、"future"（未来予定）は plan / spec ドキュメントに任せる
+- source-of-truth（helmfile / lockfile / Terraform 等）で取得できる値は書かない。設計意図に基づく安定値（retention・mode・識別子 等）は書く
 
 ## Implementation
 
