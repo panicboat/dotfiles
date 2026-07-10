@@ -15,16 +15,24 @@
 
 ## Naming
 
-- 現在の状態を表す名前をつける（変更履歴をコメントやメソッド名に含めない）
+- 現在の状態を表す名前をつける（変更履歴を名前に含めない）
 - 比較表現（"simple", "complex", "easy", "hard" など）を避ける
 
 ## Documentation
 
-- "what"（現在の状態・動作）と "why"（その状態を選んだ理由）を書く。"when"（変更履歴）と "future"（未来予定）は書かない
+各媒体は答えるべき問いが異なる。同じ情報を複数の媒体に重複させない。
+
+- コード → How（どう実現するか。実装そのものが語る）
+- テストコード → What（何をすべきか＝振る舞い・仕様。テスト名とアサーションで表す）
+- コミットログ / PR description → Why（なぜこの変更をしたか＝背景・意思決定）
+- コードコメント → Why not（なぜ "他のやり方" を採らなかったか＝制約・落とし穴。自明な "what" は書かない）
+- README / design doc → What（現在の状態・動作）と Why（選んだ理由）
+
+共通ルール:
+
 - "why" には非自明な技術制約・bug 回避・互換性・パフォーマンス特性など、それを知らないと現在の構成を理解できない情報を含める（例: "chart v82 の RBAC bug 回避のため X を disable"）
-- "when"（= 「Plan N で導入」「PR #N で撤去済」等）は Git history に、"future"（= 「Phase 5 で投入予定」等）は plan / spec ドキュメントに任せる
-- source-of-truth（helmfile / lockfile / Terraform / cluster config 等）で取得できる値は書かない。設計意図に基づく安定値（retention・mode・識別子 等）は書く
-- これは README / design doc / コードコメント / commit message / PR description 全般に適用
+- "when"（変更履歴）は Git history に、"future"（未来予定）は plan / spec ドキュメントに任せる
+- source-of-truth（helmfile / lockfile / Terraform 等）で取得できる値は書かない。設計意図に基づく安定値（retention・mode・識別子 等）は書く
 
 ## Implementation
 
