@@ -33,12 +33,28 @@
 - "when"（変更履歴）は Git history に、"future"（未来予定）は plan / spec ドキュメントに任せる
 - source-of-truth（helmfile / lockfile / Terraform 等）で取得できる値は書かない。設計意図に基づく安定値（retention・mode・識別子 等）は書く
 
-## Writing Instructions
+## Instructions
 
 ルール・prompt・subagent への指示に適用する。
 
 - 実行可能または検証可能な文だけを書く（「注意深く」「よく考えて」等は不可）
 - 手順には順序と完了条件を明示する
+
+## Workflow
+
+ファイルへの書き込み（docs・plan・コードを問わず）を行う前に、以下のいずれかを選択するようユーザーに確認する。brainstorming など会話のみで完結する段階では確認不要。
+
+1. worktree を使って進める
+2. worktree を使わず新規ブランチを作成して進める
+3. このブランチ（`<現在のブランチ名>`）で進める ※選択肢を提示する際は実際のブランチ名を表示すること
+4. 任意入力（上記以外の方法をユーザーが指定）
+
+### Worktree Operations
+
+- リポジトリ内の `.claude/worktrees/<dir>` にディレクトリを作成する。`<dir>` はブランチ名の `/` を `-` に置換した値（例: `feat/login` → `.claude/worktrees/feat-login/`）
+- 初回利用時は `.git/info/exclude` に `/.claude/worktrees/` を追加しておく（個人ローカルでの除外）
+- 新規ブランチは default branch を base に作成する: `git worktree add -b <branch> .claude/worktrees/<dir> origin/<default-branch>`
+- 作業完了・マージ後は `git worktree remove .claude/worktrees/<branch>` で削除し、必要に応じて `git worktree prune` で残骸を整理する
 
 ## Implementation
 
@@ -66,25 +82,22 @@
 - 変更していないコードにドキュメント・コメント・型注釈を追加しない
 - 既存コードのスタイル・パターンとの一貫性を保つ
 
+### Code Markers
+
+- 一時的な実装には `// TODO:` を追加
+- フォールバック処理には `// FALLBACK:` を追加
+- エラーを意図的に握りつぶす場合は `// SILENT:` を追加
+
 ### Goal-Driven Execution
 
 - 成功基準を事前に定義し、実装後に検証してから完了とする
 - テストを書いていない実装は完了とみなさない
 - 報告の主張には検証レベルを明示する: VERIFIED（実行して確認。コマンドと出力を添える）/ REASONED（コード読解による推論）/ ASSUMED（未確認の仮定）。証拠のない成功報告をしない
 
-### Debugging
+### Failure Handling
 
 - 修正の前に因果を言語化する。「X が Y を引き起こす。なぜなら Z」と言えないうちは相関にすぎない。Z を特定してから直す
-
-### Learning Loop
-
 - 同種の失敗が繰り返されたら、「症状 → ありがちな間違い → 正しい一手」の形式で CLAUDE.md / skill への追記を提案する
-
-### Code Markers
-
-- 一時的な実装には `// TODO:` を追加
-- フォールバック処理には `// FALLBACK:` を追加
-- エラーを意図的に握りつぶす場合は `// SILENT:` を追加
 
 ## Git
 
@@ -93,19 +106,3 @@
 - 作業ブランチが一区切りしたら push し、**Draft PR を作成して可視化する**（`gh pr create --draft`。Draft 以外で作らない）
 - PR のタイトル（件名）は英語で記述する
 - 新規ブランチの初回 push は必ず `git push -u origin HEAD` でトラッキングを設定する
-
-## Workflow
-
-ファイルへの書き込み（docs・plan・コードを問わず）を行う前に、以下のいずれかを選択するようユーザーに確認する。brainstorming など会話のみで完結する段階では確認不要。
-
-1. worktree を使って進める
-2. worktree を使わず新規ブランチを作成して進める
-3. このブランチ（`<現在のブランチ名>`）で進める ※選択肢を提示する際は実際のブランチ名を表示すること
-4. 任意入力（上記以外の方法をユーザーが指定）
-
-### worktree を使う場合の運用ルール
-
-- リポジトリ内の `.claude/worktrees/<dir>` にディレクトリを作成する。`<dir>` はブランチ名の `/` を `-` に置換した値（例: `feat/login` → `.claude/worktrees/feat-login/`）
-- 初回利用時は `.git/info/exclude` に `/.claude/worktrees/` を追加しておく（個人ローカルでの除外）
-- 新規ブランチは default branch を base に作成する: `git worktree add -b <branch> .claude/worktrees/<dir> origin/<default-branch>`
-- 作業完了・マージ後は `git worktree remove .claude/worktrees/<branch>` で削除し、必要に応じて `git worktree prune` で残骸を整理する
