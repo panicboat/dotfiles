@@ -1,11 +1,4 @@
 # Homebrew
-# Why prepend directly instead of `eval "$(brew shellenv)"`:
-#   cmux starts the shell with HOMEBREW_BREW_FILE + HOMEBREW_PATH injected (the
-#   latter already starting with /opt/homebrew/{bin,sbin}) but WITHOUT /opt/homebrew/bin
-#   on the real PATH. brew keeps that injected HOMEBREW_PATH, so shellenv's
-#   idempotency guard thinks it is already set up and emits nothing -- ~/.zprofile's
-#   `eval "$(brew shellenv)"` becomes a no-op and starship/eza/bat below fail.
-# Why the guard: Terminal login shells already have it via .zprofile, so short-circuit.
 [[ ":$PATH:" == *":/opt/homebrew/bin:"* ]] || export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
 
 # no match found
@@ -33,11 +26,6 @@ alias k='kubectl'
 
 # initialization
 eval "$(starship init zsh)"
-# Why not `eval "$(<tool>env init - zsh)"` at startup:
-#   shims already handle version dispatch for ruby/node/python/go (they exec the
-#   real binary via subprocess and don't need shell state). init only matters
-#   when the user calls `<tool>env` itself (e.g. `rbenv shell 3.4.0`), so defer
-#   it until then. Skips ~100ms of eager `init` + `rehash` per shell start.
 # nodejs
 export PATH="$HOME/.nodenv/shims:$PATH"
 nodenv() { unfunction nodenv; eval "$(command nodenv init - zsh)"; nodenv "$@"; }
@@ -67,10 +55,6 @@ source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 FPATH=/opt/homebrew/share/zsh-completions:$FPATH
 FPATH=/opt/homebrew/share/zsh/site-functions:$FPATH
 
-# Why not `source <(kubectl completion zsh)` on every start:
-#   kubectl invocation (~40ms) plus ~1000 `compdef` calls inside compinit
-#   (~130ms) dominated startup. Cache the completion script to fpath and let
-#   compinit auto-discover it; regenerate only when the kubectl binary is newer.
 _kube_cache_dir=${ZDOTDIR:-$HOME}/.zsh/completions
 if (( $+commands[kubectl] )); then
   if [[ ! -f $_kube_cache_dir/_kubectl || $commands[kubectl] -nt $_kube_cache_dir/_kubectl ]]; then
@@ -81,10 +65,6 @@ if (( $+commands[kubectl] )); then
 fi
 unset _kube_cache_dir
 
-# Why not `compinit` unconditionally:
-#   rebuilding the dump + security audit costs ~300ms per shell. Rebuild at most
-#   once per day; otherwise use `-C` (skip security check) against the cached
-#   dump. First-run and daily runs still do the full check.
 autoload -Uz compinit
 _zcompdump=${ZDOTDIR:-$HOME}/.zcompdump
 if [[ ! -f $_zcompdump || -n $_zcompdump(#qN.md+1) ]]; then
@@ -155,29 +135,8 @@ function codex() {
   $HOME/.agents/skills/agmsg/scripts/drivers/types/codex/codex-shim.sh "$@"
 }
 
-function aws-token() {
-  unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
-  local credentials
-  credentials=$(aws configure export-credentials 2>/dev/null) || {
-    echo "Error: Failed to get AWS credentials" >&2
-    return 1
-  }
-  eval "$(jq -r '@sh "
-    export AWS_ACCESS_KEY_ID=\(.AccessKeyId)
-    export AWS_SECRET_ACCESS_KEY=\(.SecretAccessKey)
-    export AWS_SESSION_TOKEN=\(.SessionToken)
-  "' <<< "$credentials")" || {
-    echo "Error: Failed to parse credentials" >&2
-    return 1
-  }
-}
-
-function bedrock() {
-  export CLAUDE_CODE_USE_BEDROCK=1
-  export AWS_REGION=us-east-2
-  export ANTHROPIC_DEFAULT_OPUS_MODEL='global.anthropic.claude-opus-4-7'
-  export ANTHROPIC_DEFAULT_SONNET_MODEL='global.anthropic.claude-sonnet-4-6'
-  export ANTHROPIC_DEFAULT_HAIKU_MODEL='global.anthropic.claude-haiku-4-5-20251001-v1:0'
+function brew-update() {
+  brew update && brew upgrade && brew upgrade --cask && brew cleanup && brew autoremove
 }
 
 function eks-login() {

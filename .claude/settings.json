@@ -32,7 +32,6 @@
     }
   },
   "inputNeededNotifEnabled": true,
-  "model": "claude-opus-4-7",
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
