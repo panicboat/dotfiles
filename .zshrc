@@ -1,11 +1,12 @@
 # Homebrew
-# Why not rely on ~/.zprofile alone:
-#   brew shellenv lives in ~/.zprofile, which only login shells source. Non-login
-#   interactive shells (cmux, VS Code) skip it, so /opt/homebrew/bin is missing and
-#   starship/eza/bat/... below all fail. Set it here too.
-# Why the guard: login shells already ran it via .zprofile, so short-circuit to
-#   avoid a redundant brew shellenv (~tens of ms) per start.
-[[ ":$PATH:" == *":/opt/homebrew/bin:"* ]] || eval "$(/opt/homebrew/bin/brew shellenv)"
+# Why prepend directly instead of `eval "$(brew shellenv)"`:
+#   cmux starts the shell with HOMEBREW_BREW_FILE + HOMEBREW_PATH injected (the
+#   latter already starting with /opt/homebrew/{bin,sbin}) but WITHOUT /opt/homebrew/bin
+#   on the real PATH. brew keeps that injected HOMEBREW_PATH, so shellenv's
+#   idempotency guard thinks it is already set up and emits nothing -- ~/.zprofile's
+#   `eval "$(brew shellenv)"` becomes a no-op and starship/eza/bat below fail.
+# Why the guard: Terminal login shells already have it via .zprofile, so short-circuit.
+[[ ":$PATH:" == *":/opt/homebrew/bin:"* ]] || export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
 
 # no match found
 setopt +o nomatch
