@@ -111,5 +111,6 @@
 
 ## Team Collaboration
 
-- agmsg で役割ベース運用（例: leader / coder / reviewer）を採るチームに参加している場合、`agmsg-role-workflow` skill を読み、以後は自分の役割の節に従う
-- 未参加または役割が未確定のときは、人間の指示に従って参加・役割確定してから作業を始める
+- セッション開始時、agmsg で自分宛の未読と直近 history を確認する
+- 自分に役割が登録されていれば `agmsg-role-workflow` skill を読み、以後はその役割の定義（skill の Roles かチーム個別の定義）に従う
+- 役割が未登録・不明なときは、人間の指示に従って参加・役割を確定してから作業を始める
