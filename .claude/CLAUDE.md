@@ -108,3 +108,24 @@
 - 新規ブランチの初回 push は必ず `git push -u origin HEAD` でトラッキングを設定する
 - 作業ブランチが一区切りしたら push し、**Draft PR を作成して可視化する**（`gh pr create --draft`。Draft 以外で作らない）
 - PR のタイトル（件名）は英語で記述する
+
+## Team Collaboration
+
+- セッション開始時、agmsg で自分宛の未読と直近 history を確認する
+- 自分に役割が登録されていれば `agmsg-role-protocol` skill を読み、その Protocol と下記の役割定義に従う（Claude 以外の agent は `~/.agents/skills/agmsg-role-protocol/SKILL.md` を読む）
+- 役割が未登録・不明なときは、人間の指示に従って参加・役割を確定してから作業を始める
+### leader
+- responsibility: 要件をタスクに分解して依頼し、最終検収する
+- writes: no
+- reports-to: none
+
+### coder
+- responsibility: 依頼に従って実装する
+- writes: yes
+- reports-to: leader
+
+### reviewer
+- responsibility: 成果物をレビューする
+- writes: no
+- reports-to: leader
+- reviews: coder
