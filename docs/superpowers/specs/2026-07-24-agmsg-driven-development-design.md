@@ -59,9 +59,18 @@ idle な Codex は後送メッセージを受信できない（agmsg の制約�
 
 ## Team / Identity Management
 
-- skill 開始時に `whoami.sh` で controller の identity を確認する。既存の登録があればそれを使い、未参加なら team 名 = リポジトリ名・agent 名 = `leader` で join する
-- Codex の implementer 名は `implementer` 固定。タスクは直列実行なので衝突せず、despawn で actas lock が解放される
+- team は run（worktree）ごとに 1 つ作る。team 名 = `<リポジトリ名>-<branch-slug>`（slug はブランチ名の `/` を `-` に置換。worktree ディレクトリ命名と同じ規則）
+- identity は固定名: controller = `leader`、Codex = `implementer`。agent 名は team 内のアドレスなので、team を分離すれば並列 worktree でも衝突しない（actas lock も (team, agent) 単位）
+- メッセージは宛先 agent 名への point-to-point 配送で inbox は混ざらない。`history` / `team` の観測面も team 分離により run ごとに分かれる
+- run 終了時に implementer を despawn し、leader を `leave.sh` で離脱させる。`leave.sh` は空になった team を削除するため team は増殖しない
 - Codex のモデルは既定を使い、必要な場合のみ `spawn.sh --model` で上書きする。SDD の Model Selection 節は Claude subagent（レビュー役）にのみ適用する
+
+### Explicit Addressing
+
+agmsg の project 解決（`resolve-project.sh`）は、SessionStart marker・登録済み ancestor・git common dir から「session が属する project」を推定するため、worktree からの呼び出しが main checkout に巻き戻されることがある。skill はこの ambient 解決に依存しない。
+
+- run 開始時に TEAM・AGENT・project path（worktree の絶対パス）を確定し、以後すべてのスクリプト呼び出しに明示的に渡す（`whoami.sh` の自動解決に依存しない）
+- 登録に影響する呼び出し（`join.sh`）には `AGMSG_RESOLVE_PROJECT=0` を付け、worktree パスが main checkout に書き換えられるのを防ぐ（`spawn.sh` は `--project` に対して内部で同じ対処を行っている）
 
 ## Workflow Integration
 
@@ -94,3 +103,5 @@ idle な Codex は後送メッセージを受信できない（agmsg の制約�
 
 - 小さな plan（1〜2 タスク）を本 skill で実行し、spawn → 実装 → agmsg 報告 → review → despawn のサイクルが人手の介入なしで一周することを VERIFIED にする
 - plan 実行開始時に CLAUDE.md ルールによる実行方式の選択確認が発火することを確認する
+- 2 つの worktree で本 skill を並行実行し、team・identity・メッセージ配送が run 間で混ざらないことを確認する
+- run 終了後に `leave.sh` により team が削除され、登録が残らないことを確認する
