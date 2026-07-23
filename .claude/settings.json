@@ -1,46 +1,46 @@
 {
-  "model": "claude-opus-4-7",
+  "agentPushNotifEnabled": true,
+  "effortLevel": "xhigh",
+  "enabledPlugins": {
+    "agmsg@fujibee-agmsg": true,
+    "compact-plus@compact-plus": true,
+    "pixelbrowse@pixelrag-plugins": true,
+    "ruby-lsp@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true
+  },
   "env": {
     "CLAUDE_CODE_SUBAGENT_MODEL": "claude-sonnet-5"
   },
-  "permissions": {
-    "defaultMode": "bypassPermissions"
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "$HOME/.claude/scripts/statusline.sh"
-  },
-  "enabledPlugins": {
-    "ruby-lsp@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true,
-    "agmsg@fujibee-agmsg": true,
-    "pixelbrowse@pixelrag-plugins": true,
-    "compact-plus@compact-plus": true
-  },
   "extraKnownMarketplaces": {
+    "compact-plus": {
+      "source": {
+        "repo": "u-ichi/compact-plus",
+        "source": "github"
+      }
+    },
     "fujibee-agmsg": {
       "source": {
-        "source": "github",
-        "repo": "fujibee/agmsg"
+        "repo": "fujibee/agmsg",
+        "source": "github"
       }
     },
     "pixelrag-plugins": {
       "source": {
-        "source": "github",
-        "repo": "StarTrail-org/PixelRAG"
-      }
-    },
-    "compact-plus": {
-      "source": {
-        "source": "github",
-        "repo": "u-ichi/compact-plus"
+        "repo": "StarTrail-org/PixelRAG",
+        "source": "github"
       }
     }
   },
-  "effortLevel": "xhigh",
-  "skipDangerousModePermissionPrompt": true,
-  "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true,
+  "model": "claude-opus-4-7",
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  },
+  "remoteControlAtStartup": true,
+  "skipDangerousModePermissionPrompt": true,
+  "statusLine": {
+    "command": "$HOME/.claude/scripts/statusline.sh",
+    "type": "command"
+  },
   "useAutoModeDuringPlan": true
 }
