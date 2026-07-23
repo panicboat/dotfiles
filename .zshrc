@@ -1,3 +1,12 @@
+# Homebrew
+# Why not rely on ~/.zprofile alone:
+#   brew shellenv lives in ~/.zprofile, which only login shells source. Non-login
+#   interactive shells (cmux, VS Code) skip it, so /opt/homebrew/bin is missing and
+#   starship/eza/bat/... below all fail. Set it here too.
+# Why the guard: login shells already ran it via .zprofile, so short-circuit to
+#   avoid a redundant brew shellenv (~tens of ms) per start.
+[[ ":$PATH:" == *":/opt/homebrew/bin:"* ]] || eval "$(/opt/homebrew/bin/brew shellenv)"
+
 # no match found
 setopt +o nomatch
 
