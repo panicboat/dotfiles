@@ -31,7 +31,7 @@
 - Consumes: なし（最初のタスク）
 - Produces: SKILL.md の Dispatch 節が `codex-dispatch-prompt.md`（同一ディレクトリ・このファイル名）を参照する。template の placeholder 名は `{{TEAM}}` `{{PROJECT}}` `{{ONE_LINE_TASK_CONTEXT}}` `{{INTERFACES_OR_NONE}}` `{{BRIEF_ABSOLUTE_PATH}}` `{{REPORT_ABSOLUTE_PATH}}` の 6 つ。Task 3 の symlink がこの 2 ファイルを対象にする
 
-- [ ] **Step 1: SKILL.md を書く**
+- [x] **Step 1: SKILL.md を書く**
 
 `.claude/skills/agmsg-driven-development/SKILL.md` に以下の内容を書く（0 バイトのプレースホルダを上書き）:
 
@@ -126,7 +126,7 @@ SDD の Red Flags に加えて、以下をしてはならない。
 - Teardown を飛ばして run を終える（team と登録が残る）
 ````
 
-- [ ] **Step 2: codex-dispatch-prompt.md を書く**
+- [x] **Step 2: codex-dispatch-prompt.md を書く**
 
 `.claude/skills/agmsg-driven-development/codex-dispatch-prompt.md` に以下の内容を書く:
 
@@ -173,7 +173,7 @@ The task is complete only when both steps below are done, in this order.
 If NEEDS_CONTEXT or BLOCKED: put your questions or blocker details in the report file, send the status, then stop. Answers arrive as an appended `## Redispatch` section of this dispatch file, read by a fresh session. Never wait for a reply in this session.
 ````
 
-- [ ] **Step 3: 検証**
+- [x] **Step 3: 検証**
 
 実行:
 ```bash
@@ -182,7 +182,7 @@ grep -o '{{[A-Z_]*}}' .claude/skills/agmsg-driven-development/codex-dispatch-pro
 ```
 期待: SKILL.md の `## ` 見出しが 8（Prerequisites / Setup / Substitutions / Dispatch / Await / Redispatch / Teardown / Red Flags）。placeholder が `{{BRIEF_ABSOLUTE_PATH}}` `{{INTERFACES_OR_NONE}}` `{{ONE_LINE_TASK_CONTEXT}}` `{{PROJECT}}` `{{REPORT_ABSOLUTE_PATH}}` `{{TEAM}}` の 6 種のみ
 
-- [ ] **Step 4: コミット**
+- [x] **Step 4: コミット**
 
 ```bash
 git add .claude/skills/agmsg-driven-development/SKILL.md .claude/skills/agmsg-driven-development/codex-dispatch-prompt.md
@@ -208,7 +208,7 @@ worktree run so parallel runs do not collide."
 - Consumes: Task 1 の skill 名 `agmsg-driven-development`（ルール本文が参照）
 - Produces: なし（最終タスクへの引き継ぎなし）
 
-- [ ] **Step 1: CLAUDE.md に Plan Execution 節を追加**
+- [x] **Step 1: CLAUDE.md に Plan Execution 節を追加**
 
 `.claude/CLAUDE.md` の `### Worktree Operations` ブロック末尾（`- 作業完了・マージ後は ...` の行）と `## Implementation` の間に以下を挿入する:
 
@@ -221,12 +221,12 @@ worktree run so parallel runs do not collide."
   3. executing-plans（このセッションでインライン実行）
 ```
 
-- [ ] **Step 2: 検証**
+- [x] **Step 2: 検証**
 
 実行: `grep -A 6 '^### Plan Execution' .claude/CLAUDE.md`
 期待: 上記 6 行が表示される。`git diff .claude/CLAUDE.md` に Team Collaboration 節の削除と Plan Execution の追加だけが含まれる
 
-- [ ] **Step 3: コミット**
+- [x] **Step 3: コミット**
 
 `.claude/settings.json` を含めないこと。
 
@@ -257,7 +257,7 @@ git status --short
 - Consumes: Task 1 の 2 ファイル（symlink 対象）
 - Produces: `~/.claude/skills/agmsg-driven-development/` が全プロジェクトから user skill として解決可能になる（Task 4 の前提）
 
-- [ ] **Step 1: 残骸の確認と削除**
+- [x] **Step 1: 残骸の確認と削除**
 
 実行（削除前に中身を確認する）:
 ```bash
@@ -268,7 +268,7 @@ git status --short
 rm -rf ~/.claude/skills/agmsg-role-protocol ~/.agents/skills/agmsg-role-protocol
 ```
 
-- [ ] **Step 2: symlink 設置**
+- [x] **Step 2: symlink 設置**
 
 ```bash
 mkdir -p ~/.claude/skills/agmsg-driven-development
@@ -276,7 +276,7 @@ ln -s /Users/takanokenichi/GitHub/panicboat/dotfiles/.claude/skills/agmsg-driven
 ln -s /Users/takanokenichi/GitHub/panicboat/dotfiles/.claude/skills/agmsg-driven-development/codex-dispatch-prompt.md ~/.claude/skills/agmsg-driven-development/codex-dispatch-prompt.md
 ```
 
-- [ ] **Step 3: 検証**
+- [x] **Step 3: 検証**
 
 実行: `/bin/ls -laL ~/.claude/skills/agmsg-driven-development/`
 期待: SKILL.md と codex-dispatch-prompt.md が実体サイズで表示される（broken symlink ならここでエラーになる）。あわせて `head -3 ~/.claude/skills/agmsg-driven-development/SKILL.md` が frontmatter を返す
@@ -296,7 +296,7 @@ ln -s /Users/takanokenichi/GitHub/panicboat/dotfiles/.claude/skills/agmsg-driven
 
 前提: tmux セッション内で実行すること。`command -v codex` が成功すること。
 
-- [ ] **Step 1: 検証リポジトリを作る**
+- [x] **Step 1: 検証リポジトリを作る**
 
 ```bash
 mkdir -p ~/tmp/agmsg-dd-e2e && cd ~/tmp/agmsg-dd-e2e
@@ -304,7 +304,7 @@ git init -b main && git commit --allow-empty -s -m "chore: init"
 mkdir -p docs/superpowers/plans
 ```
 
-- [ ] **Step 2: ミニ plan を書く**
+- [x] **Step 2: ミニ plan を書く**
 
 `~/tmp/agmsg-dd-e2e/docs/superpowers/plans/2026-07-24-greet.md` に以下を書く:
 
@@ -323,17 +323,17 @@ mkdir -p docs/superpowers/plans
 - Create: `greet.sh`
 - Test: `test.sh`
 
-- [ ] **Step 1:** `test.sh` を書く: `./greet.sh world` の出力が `hello world` と一致しなければ exit 1 する比較を含める。実行して失敗を確認（greet.sh 未作成のため）
-- [ ] **Step 2:** `greet.sh` を実装して `chmod +x` する
-- [ ] **Step 3:** `./test.sh` が exit 0 することを確認
-- [ ] **Step 4:** `git add greet.sh test.sh && git commit -s -m "feat: add greet script"`
+- [x] **Step 1:** `test.sh` を書く: `./greet.sh world` の出力が `hello world` と一致しなければ exit 1 する比較を含める。実行して失敗を確認（greet.sh 未作成のため）
+- [x] **Step 2:** `greet.sh` を実装して `chmod +x` する
+- [x] **Step 3:** `./test.sh` が exit 0 することを確認
+- [x] **Step 4:** `git add greet.sh test.sh && git commit -s -m "feat: add greet script"`
 ```
 
-- [ ] **Step 3: skill を実行して 1 サイクル観察**
+- [x] **Step 3: skill を実行して 1 サイクル観察**
 
 tmux 内で `~/tmp/agmsg-dd-e2e` から新しい Claude Code セッションを開始し、「`docs/superpowers/plans/2026-07-24-greet.md` を agmsg-driven-development で実行して」と依頼する。CLAUDE.md の Plan Execution ルールによる実行方式の確認が出ること（Success Criteria 2）も観察する。
 
-- [ ] **Step 4: 結果検証**
+- [x] **Step 4: 結果検証**
 
 実行（e2e リポジトリで）:
 ```bash
@@ -354,7 +354,7 @@ git log --format='%h %s %(trailers:key=Signed-off-by)' -3
 - Consumes: Task 4 の検証リポジトリと結果
 - Produces: Success Criteria 3・4 の VERIFIED 判定
 
-- [ ] **Step 1: worktree を 2 本作る**
+- [x] **Step 1: worktree を 2 本作る**
 
 ```bash
 cd ~/tmp/agmsg-dd-e2e
@@ -364,11 +364,11 @@ git worktree add -b feat/b .claude/worktrees/feat-b main
 
 各 worktree の `docs/superpowers/plans/` に Task 4 Step 2 と同型のミニ plan を置く（feat/a は `greet-a.sh`、feat/b は `greet-b.sh` を対象にし、ファイル名衝突を避ける）。
 
-- [ ] **Step 2: 2 セッション並行実行**
+- [x] **Step 2: 2 セッション並行実行**
 
 tmux 内で各 worktree から Claude Code セッションを 1 つずつ開始し、同時に agmsg-driven-development で各 plan を実行させる。
 
-- [ ] **Step 3: 分離の検証**
+- [x] **Step 3: 分離の検証**
 
 実行（両 run の実行中〜完了後）:
 ```bash
@@ -378,7 +378,7 @@ tmux 内で各 worktree から Claude Code セッションを 1 つずつ開始�
 ```
 期待: 実行中は `agmsg-dd-e2e-feat-a` と `agmsg-dd-e2e-feat-b` の 2 team が並存し、spawn の name 衝突が起きない。各 history に相手 run のメッセージが混ざらない。両 run の Teardown 後は teams が空に戻る（Success Criteria 3・4 を VERIFIED として記録）
 
-- [ ] **Step 4: 後片付け**
+- [x] **Step 4: 後片付け**
 
 ```bash
 rm -rf ~/tmp/agmsg-dd-e2e
