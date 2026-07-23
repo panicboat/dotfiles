@@ -112,5 +112,20 @@
 ## Team Collaboration
 
 - セッション開始時、agmsg で自分宛の未読と直近 history を確認する
-- 自分に役割が登録されていれば `agmsg-role-workflow` skill を読み、以後はその役割の定義（skill の Roles かチーム個別の定義）に従う
+- 自分に役割が登録されていれば `agmsg-role-protocol` skill を読み、その Protocol と下記の役割定義に従う（Claude 以外の agent は `~/.agents/skills/agmsg-role-protocol/SKILL.md` を読む）
 - 役割が未登録・不明なときは、人間の指示に従って参加・役割を確定してから作業を始める
+### leader
+- responsibility: 要件をタスクに分解して依頼し、最終検収する
+- writes: no
+- reports-to: none
+
+### coder
+- responsibility: 依頼に従って実装する
+- writes: yes
+- reports-to: leader
+
+### reviewer
+- responsibility: 成果物をレビューする
+- writes: no
+- reports-to: leader
+- reviews: coder
