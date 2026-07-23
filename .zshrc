@@ -23,19 +23,26 @@ alias k='kubectl'
 
 # initialization
 eval "$(starship init zsh)"
+# Why not `eval "$(<tool>env init - zsh)"` at startup:
+#   shims already handle version dispatch for ruby/node/python/go (they exec the
+#   real binary via subprocess and don't need shell state). init only matters
+#   when the user calls `<tool>env` itself (e.g. `rbenv shell 3.4.0`), so defer
+#   it until then. Skips ~100ms of eager `init` + `rehash` per shell start.
 # nodejs
-eval "$(nodenv init - zsh)"
+export PATH="$HOME/.nodenv/shims:$PATH"
+nodenv() { unfunction nodenv; eval "$(command nodenv init - zsh)"; nodenv "$@"; }
 # ruby
-export PATH="$HOME/.rbenv/bin:$PATH"
-eval "$(rbenv init - zsh)"
+export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
+rbenv() { unfunction rbenv; eval "$(command rbenv init - zsh)"; rbenv "$@"; }
 # go
 export GOENV_ROOT=$HOME/.goenv
-export PATH=$GOENV_ROOT/bin:$PATH
-eval "$(goenv init -)"
+export PATH="$GOENV_ROOT/bin:$GOENV_ROOT/shims:$PATH"
+goenv() { unfunction goenv; eval "$(command goenv init -)"; goenv "$@"; }
 # python
 export PYENV_ROOT="$HOME/.pyenv"
 [[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init -)"
+[[ -d $PYENV_ROOT/shims ]] && export PATH="$PYENV_ROOT/shims:$PATH"
+pyenv() { unfunction pyenv; eval "$(command pyenv init -)"; pyenv "$@"; }
 # docker
 alias docker-stop='docker stop $(docker ps -q)'
 alias docker-prune='docker system prune -a -f --volumes && docker volume prune -a -f'
@@ -49,8 +56,33 @@ source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 FPATH=/opt/homebrew/share/zsh-completions:$FPATH
 FPATH=/opt/homebrew/share/zsh/site-functions:$FPATH
-autoload -Uz compinit && compinit
-source <(kubectl completion zsh)
+
+# Why not `source <(kubectl completion zsh)` on every start:
+#   kubectl invocation (~40ms) plus ~1000 `compdef` calls inside compinit
+#   (~130ms) dominated startup. Cache the completion script to fpath and let
+#   compinit auto-discover it; regenerate only when the kubectl binary is newer.
+_kube_cache_dir=${ZDOTDIR:-$HOME}/.zsh/completions
+if (( $+commands[kubectl] )); then
+  if [[ ! -f $_kube_cache_dir/_kubectl || $commands[kubectl] -nt $_kube_cache_dir/_kubectl ]]; then
+    mkdir -p $_kube_cache_dir
+    kubectl completion zsh > $_kube_cache_dir/_kubectl
+  fi
+  FPATH=$_kube_cache_dir:$FPATH
+fi
+unset _kube_cache_dir
+
+# Why not `compinit` unconditionally:
+#   rebuilding the dump + security audit costs ~300ms per shell. Rebuild at most
+#   once per day; otherwise use `-C` (skip security check) against the cached
+#   dump. First-run and daily runs still do the full check.
+autoload -Uz compinit
+_zcompdump=${ZDOTDIR:-$HOME}/.zcompdump
+if [[ ! -f $_zcompdump || -n $_zcompdump(#qN.md+1) ]]; then
+  compinit
+else
+  compinit -C
+fi
+unset _zcompdump
 compaudit | xargs chmod g-w
 
 # cdr
