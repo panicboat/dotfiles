@@ -9,11 +9,11 @@ superpowers:subagent-driven-development（以下 SDD）の実行構造を維持�
 
 ## Prerequisites
 
-開始前に以下を確認する。ひとつでも欠けていれば、欠けている項目を報告して SDD での実行を提案する。
+開始前に以下を確認する。1〜2 が欠けていれば、欠けている項目を報告して SDD での実行を提案する。
 
 1. `command -v codex` が成功する
 2. `test -x ~/.agents/skills/agmsg/scripts/spawn.sh` が成功する
-3. tmux 内である（`test -n "$TMUX"`）。tmux 外の場合は OS terminal 起動になることをユーザーに伝え、続行の可否を確認する
+3. tmux 内である（`test -n "$TMUX"`）。tmux 外なら停止し、`claude` を tmux 内で起動し直すようユーザーに促す（`.zshrc` の `claude` ラッパーがこれを自動化する）。tmux 必須なのは、despawn が tmux の pane/window しか閉じられず、OS terminal 起動分は Teardown で掃除できないため（この制約回避のために OS terminal へフォールバックしない）
 
 ## Setup
 

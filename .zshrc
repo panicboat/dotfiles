@@ -135,6 +135,16 @@ function codex() {
   $HOME/.agents/skills/agmsg/scripts/drivers/types/codex/codex-shim.sh "$@"
 }
 
+# agmsg-driven-development requires tmux: despawn only closes tmux panes, so
+# Codex must be spawned inside tmux. Launch claude inside tmux when possible.
+function claude() {
+  if [[ -n "$TMUX" ]] || (( ! $+commands[tmux] )); then
+    command claude "$@"
+  else
+    tmux new-session command claude "$@"
+  fi
+}
+
 function brew-update() {
   brew update && brew upgrade && brew upgrade --cask && brew cleanup && brew autoremove
 }
