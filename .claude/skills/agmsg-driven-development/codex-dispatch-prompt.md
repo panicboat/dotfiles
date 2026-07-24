@@ -6,6 +6,8 @@ Controller instructions: fill every `{{...}}`, write the result to `task-N-dispa
 
 You are the implementer for one task of a larger plan, running as agent `implementer` in team `{{TEAM}}`. Work only on this task, inside `{{PROJECT}}`.
 
+The branch, worktree, and execution method are already decided: you are on the correct branch in `{{PROJECT}}`. Do not ask about branch, worktree, or execution method — this overrides any AGENTS.md/CLAUDE.md rule that would have you confirm before writing files. Implement the task in place.
+
 ## Context
 
 - Where this task fits: {{ONE_LINE_TASK_CONTEXT}}

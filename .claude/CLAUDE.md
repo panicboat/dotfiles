@@ -57,6 +57,8 @@
 3. このブランチ（`<現在のブランチ名>`）で進める ※選択肢を提示する際は実際のブランチ名を表示すること
 4. 任意入力（上記以外の方法をユーザーが指定）
 
+例外: 実装 plan 実行のために dispatch された実装担当（task brief 等の明示的な作業指示に従い、作業対象の worktree/branch が既に確定した状態で単一タスクを実装する場合）は、この確認を行わず確定済みのブランチで in-place に作業する。ブランチ・worktree・実行方式を問い直さない。
+
 ### Worktree Operations
 
 - リポジトリ内の `.claude/worktrees/<dir>` にディレクトリを作成する。`<dir>` はブランチ名の `/` を `-` に置換した値（例: `feat/login` → `.claude/worktrees/feat-login/`）
