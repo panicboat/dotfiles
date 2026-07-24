@@ -44,7 +44,7 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
    `PANE=$(herdr pane split --current --direction right --cwd "$PROJECT" | jq -r '.result.pane.pane_id')`
 4. その pane で Codex を起動する:
    `herdr agent start implementer --kind codex --pane "$PANE" --timeout 120000`
-   失敗したら `herdr pane close "$PANE"` で掃除して 1 回だけ再試行する。再失敗はユーザーに報告して指示を待つ
+   失敗したら `herdr pane close "$PANE"` で pane を掃除し、手順 3〜4（新しい pane を split し直して agent start）を 1 回だけやり直す。再失敗はユーザーに報告して指示を待つ
 5. boot prompt を投入する:
    `herdr agent prompt "$PANE" "Read <dispatch file の絶対パス> and follow it exactly."`
 
@@ -72,7 +72,7 @@ NEEDS_CONTEXT・BLOCKED・レビュー指摘の fix は、生きた Codex に投
 タスクの review が通ったら、または run を中断するときに実行する。完了条件: 対象 pane が閉じていること。
 
 1. `herdr pane close "$PANE"`（既に閉じている場合のエラーは想定内として続行）
-2. 全タスク完了後、残っている implementer pane があれば同様に閉じる
+2. 全タスク完了後、`herdr pane list` で残っている implementer pane を確認し、あれば同様に `herdr pane close <PANE_ID>` で閉じる
 
 ## Red Flags
 
