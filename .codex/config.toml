@@ -6,3 +6,6 @@ model_reasoning_effort = "medium"
 
 [plugins."superpowers@openai-curated"]
 enabled = true
+
+[features]
+hooks = true
