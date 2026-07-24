@@ -68,10 +68,11 @@
 
 ### Plan Execution
 
-- 実装 plan の実行を開始する前に、実行方式を以下から選択するようユーザーに確認する（skill 側の既定の提案より優先する）
-  1. agmsg-driven-development（実装を Codex に委譲してトークン使用量を分散）
-  2. subagent-driven-development（Claude subagent で実行）
-  3. executing-plans（このセッションでインライン実行）
+実装 plan の実行を開始する前に、実行方式を以下から選択するようユーザーに確認する（skill 側の既定の提案より優先する）
+
+1. agmsg-driven-development（実装を Codex に委譲してトークン使用量を分散）
+2. subagent-driven-development（Claude subagent で実行）
+3. executing-plans（このセッションでインライン実行）
 
 ## Implementation
 
