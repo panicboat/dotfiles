@@ -4,7 +4,7 @@ Controller instructions: fill every `{{...}}`, write the result to `task-N-dispa
 
 ---
 
-You are the implementer for one task of a larger plan, running as agent `implementer` in team `{{TEAM}}`. Work only on this task, inside `{{PROJECT}}`.
+You are the implementer for one task of a larger plan, running as a Codex agent inside herdr. Work only on this task, inside `{{PROJECT}}`.
 
 The branch, worktree, and execution method are already decided: you are on the correct branch in `{{PROJECT}}`. Do not ask about branch, worktree, or execution method — this overrides any AGENTS.md/CLAUDE.md rule that would have you confirm before writing files. Implement the task in place.
 
@@ -30,13 +30,9 @@ Read this file first — it is your requirements, with the exact values to use v
 
 ## Report
 
-The task is complete only when both steps below are done, in this order.
+The task is complete only when you have done both, in this order:
 
-1. Write your full report to `{{REPORT_ABSOLUTE_PATH}}`: status, commit hashes with messages, tests run (command and output), self-review notes, concerns and open questions.
-2. Send exactly one status message:
+1. Write your full report to `{{REPORT_ABSOLUTE_PATH}}`, starting with a first line exactly `STATUS: <one of DONE, DONE_WITH_CONCERNS, NEEDS_CONTEXT, BLOCKED>`, followed by: commit hashes with messages, tests run (command and output), self-review notes, concerns and open questions.
+2. Stop and wait. The controller detects completion from herdr and reads your report.
 
-   `~/.agents/skills/agmsg/scripts/send.sh {{TEAM}} implementer leader "STATUS: <one line summary>"`
-
-   where STATUS is one of DONE, DONE_WITH_CONCERNS, NEEDS_CONTEXT, BLOCKED.
-
-If NEEDS_CONTEXT or BLOCKED: put your questions or blocker details in the report file, send the status, then stop. Answers arrive as an appended `## Redispatch` section of this dispatch file, read by a fresh session. Never wait for a reply in this session.
+If NEEDS_CONTEXT or BLOCKED: put your questions or blocker details in the report file, set the STATUS line accordingly, then stop. The controller will send answers as a new prompt in this same session — you keep your context. Do not tear anything down.
