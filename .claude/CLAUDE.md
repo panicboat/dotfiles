@@ -57,12 +57,22 @@
 3. このブランチ（`<現在のブランチ名>`）で進める ※選択肢を提示する際は実際のブランチ名を表示すること
 4. 任意入力（上記以外の方法をユーザーが指定）
 
+例外: 実装 plan 実行のために dispatch された実装担当（task brief 等の明示的な作業指示に従い、作業対象の worktree/branch が既に確定した状態で単一タスクを実装する場合）は、この確認を行わず確定済みのブランチで in-place に作業する。ブランチ・worktree・実行方式を問い直さない。
+
 ### Worktree Operations
 
 - リポジトリ内の `.claude/worktrees/<dir>` にディレクトリを作成する。`<dir>` はブランチ名の `/` を `-` に置換した値（例: `feat/login` → `.claude/worktrees/feat-login/`）
 - 初回利用時は `.git/info/exclude` に `/.claude/worktrees/` を追加しておく（個人ローカルでの除外）
 - 新規ブランチは default branch を base に作成する: `git worktree add -b <branch> .claude/worktrees/<dir> origin/<default-branch>`
 - 作業完了・マージ後は `git worktree remove .claude/worktrees/<branch>` で削除し、必要に応じて `git worktree prune` で残骸を整理する
+
+### Plan Execution
+
+実装 plan の実行を開始する前に、実行方式を以下から選択するようユーザーに確認する（skill 側の既定の提案より優先する）
+
+1. agmsg-driven-development（実装を Codex に委譲してトークン使用量を分散）
+2. subagent-driven-development（Claude subagent で実行）
+3. executing-plans（このセッションでインライン実行）
 
 ## Implementation
 
@@ -108,24 +118,3 @@
 - 新規ブランチの初回 push は必ず `git push -u origin HEAD` でトラッキングを設定する
 - 作業ブランチが一区切りしたら push し、**Draft PR を作成して可視化する**（`gh pr create --draft`。Draft 以外で作らない）
 - PR のタイトル（件名）は英語で記述する
-
-## Team Collaboration
-
-- セッション開始時、agmsg で自分宛の未読と直近 history を確認する
-- 自分に役割が登録されていれば `agmsg-role-protocol` skill を読み、その Protocol と下記の役割定義に従う（Claude 以外の agent は `~/.agents/skills/agmsg-role-protocol/SKILL.md` を読む）
-- 役割が未登録・不明なときは、人間の指示に従って参加・役割を確定してから作業を始める
-### leader
-- responsibility: 要件をタスクに分解して依頼し、最終検収する
-- writes: no
-- reports-to: none
-
-### coder
-- responsibility: 依頼に従って実装する
-- writes: yes
-- reports-to: leader
-
-### reviewer
-- responsibility: 成果物をレビューする
-- writes: no
-- reports-to: leader
-- reviews: coder
