@@ -83,7 +83,7 @@ superpowers 系 skill を利用する際の運用ルール。
 skill が生成する spec / plan を commit するかを作業開始時に一度確認する（Workflow の branch / worktree 確認と同じタイミングでよい）。skill 側の `save and commit` より本ルールを優先する。
 
 1. commit する（skill 既定に従う）
-2. commit しない — 該当パスを `.git/info/exclude` に追加する（`.gitignore` は使わない）
+2. commit しない（該当パスを `.git/info/exclude` に追加）
 
 ## Implementation
 
