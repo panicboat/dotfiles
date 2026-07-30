@@ -66,6 +66,10 @@
 - 新規ブランチは default branch を base に作成する: `git worktree add -b <branch> .claude/worktrees/<dir> origin/<default-branch>`
 - 作業完了・マージ後は `git worktree remove .claude/worktrees/<branch>` で削除し、必要に応じて `git worktree prune` で残骸を整理する
 
+## Superpowers
+
+superpowers 系 skill を利用する際の運用ルール。
+
 ### Plan Execution
 
 実装 plan の実行を開始する前に、実行方式を以下から選択するようユーザーに確認する（skill 側の既定の提案より優先する）
@@ -73,6 +77,13 @@
 1. agmsg-driven-development（実装を Codex に委譲してトークン使用量を分散）
 2. subagent-driven-development（Claude subagent で実行）
 3. executing-plans（このセッションでインライン実行）
+
+### Artifacts
+
+skill が生成する spec / plan を commit するかを作業開始時に一度確認する（Workflow の branch / worktree 確認と同じタイミングでよい）。skill 側の `save and commit` より本ルールを優先する。
+
+1. commit する（skill 既定に従う）
+2. commit しない（該当パスを `.git/info/exclude` に追加）
 
 ## Implementation
 
