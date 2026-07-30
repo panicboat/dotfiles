@@ -70,6 +70,13 @@
 
 superpowers 系 skill を利用する際の運用ルール。
 
+### Artifacts
+
+skill が生成する spec / plan を commit するかを作業開始時に一度確認する（Workflow の branch / worktree 確認と同じタイミングでよい）。skill 側の `save and commit` および既定の保存先より本ルールを優先する。
+
+1. commit する: skill 既定の保存先に従う
+2. commit しない: `.claude/superpowers/` 以下に保存し、`/.claude/superpowers/` を `.git/info/exclude` に追加する（skill 既定の保存先は commit を前提としがちなため、非管理の成果物と混在させない）
+
 ### Plan Execution
 
 実装 plan の実行を開始する前に、実行方式を以下から選択するようユーザーに確認する（skill 側の既定の提案より優先する）
@@ -77,13 +84,6 @@ superpowers 系 skill を利用する際の運用ルール。
 1. agmsg-driven-development（実装を Codex に委譲してトークン使用量を分散）
 2. subagent-driven-development（Claude subagent で実行）
 3. executing-plans（このセッションでインライン実行）
-
-### Artifacts
-
-skill が生成する spec / plan を commit するかを作業開始時に一度確認する（Workflow の branch / worktree 確認と同じタイミングでよい）。skill 側の `save and commit` より本ルールを優先する。
-
-1. commit する（skill 既定に従う）
-2. commit しない（該当パスを `.git/info/exclude` に追加）
 
 ## Implementation
 
