@@ -74,6 +74,18 @@
 2. subagent-driven-development（Claude subagent で実行）
 3. executing-plans（このセッションでインライン実行）
 
+### Superpowers Artifacts
+
+superpowers 系 skill（brainstorming の spec, writing-plans の plan 等）が生成するドキュメント（現行の出力先は `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`・`docs/superpowers/plans/YYYY-MM-DD-<feature>.md`。将来変更され得る）は、以下のとおり扱う。判定はパスではなく「superpowers が生成した spec / plan」という性質で行う。
+
+- skill 側の `save and commit` 等の指示より本ルールを優先する
+- 作業開始時に、当該 repo で spec / plan を commit するか一度確認する。Workflow の branch / worktree 確認と同じタイミングで済ませてよい
+- 「commit しない」を選んだ場合:
+  - `git add` / `git commit` に含めない（明示指示がない限り自動で stage / commit しない）
+  - `.gitignore` への追記は禁止（コミットされ他 clone・CI に波及するため）
+  - 除外が必要な場合は `.git/info/exclude` に該当パスを追加する。clone 固有・非コミットで、worktree 有無に関わらず有効。Worktree Operations と同じ方針
+- 「commit する」を選んだ場合は skill 既定の挙動（save and commit）に従う
+
 ## Implementation
 
 ### Think Before Coding
