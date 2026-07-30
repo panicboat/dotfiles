@@ -66,6 +66,10 @@
 - 新規ブランチは default branch を base に作成する: `git worktree add -b <branch> .claude/worktrees/<dir> origin/<default-branch>`
 - 作業完了・マージ後は `git worktree remove .claude/worktrees/<branch>` で削除し、必要に応じて `git worktree prune` で残骸を整理する
 
+## Superpowers
+
+superpowers 系 skill を利用する際の運用ルール。
+
 ### Plan Execution
 
 実装 plan の実行を開始する前に、実行方式を以下から選択するようユーザーに確認する（skill 側の既定の提案より優先する）
@@ -74,7 +78,7 @@
 2. subagent-driven-development（Claude subagent で実行）
 3. executing-plans（このセッションでインライン実行）
 
-### Superpowers Artifacts
+### Artifacts
 
 superpowers 系 skill（brainstorming の spec, writing-plans の plan 等）が生成するドキュメント（現行の出力先は `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`・`docs/superpowers/plans/YYYY-MM-DD-<feature>.md`。将来変更され得る）は、以下のとおり扱う。判定はパスではなく「superpowers が生成した spec / plan」という性質で行う。
 
