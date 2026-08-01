@@ -72,18 +72,60 @@ superpowers 系 skill を利用する際の運用ルール。
 
 ### Artifacts
 
-skill が生成する spec / plan を commit するかを作業開始時に一度確認する（Workflow の branch / worktree 確認と同じタイミングでよい）。skill 側の `save and commit` および既定の保存先より本ルールを優先する。
+skill が生成する spec / plan を commit するかを作業開始時に一度確認する（Workflow の branch / worktree 確認と同じタイミングでよい）。
+**skill 側の `save and commit` および既定の保存先より本ルールを優先する。**
 
 1. commit する: skill 既定の保存先に従う
 2. commit しない: `.claude/superpowers/` 以下に保存し、`/.claude/superpowers/` を `.git/info/exclude` に追加する（skill 既定の保存先は commit を前提としがちなため、非管理の成果物と混在させない）
 
 ### Plan Execution
 
-実装 plan の実行を開始する前に、実行方式を以下から選択するようユーザーに確認する（skill 側の既定の提案より優先する）
+実装 plan の実行を開始する前に、実行方式を以下から選択するようユーザーに確認する
+**skill 側の既定の提案より優先する**
 
 1. agmsg-driven-development（実装を Codex に委譲してトークン使用量を分散）
 2. subagent-driven-development（Claude subagent で実行）
 3. executing-plans（このセッションでインライン実行）
+
+## agmsg
+
+agmsg 系 skill を利用する際の運用ルール。
+
+### Team Selection
+
+セッション内で初めて agmsg 系 skill を利用する前に、team の扱いを以下から選択するようユーザーに確認する
+**skill 側の default flow より本ルールを優先する**
+
+事前に以下を実行し、既存 team 名と参加 agent を選択肢に併記する
+
+- `~/.agents/skills/agmsg/scripts/whoami.sh "$(pwd)"` で現在の登録状況と `available_teams` を取得
+- `available_teams` の各 team について `~/.agents/skills/agmsg/scripts/team.sh <team>` を実行し、参加 agent 名を取得
+
+1. 新規 team を作成する（team 名と agent 名を指定）
+2. 既存 team に join する（team 名と agent 名を指定）
+3. 現在登録済みの identity のまま使う（`whoami.sh` の出力を提示）
+
+「1. 新規 team を作成する」が選ばれた場合は、上で取得した既存 team 一覧を再度提示し、不要な team があれば先に解散するかをユーザーに確認する（解散手順は Team Disband 節）。
+
+確認が完了するまで agmsg の team join・message 送信を行わない。
+
+### Delivery Mode
+
+Team Selection で 1 or 2（`join.sh` を実行する経路）を選んだあとは、delivery mode の選択をユーザーに聞かず `monitor` に設定する。
+**skill 側の mode 選択プロンプトより本ルールを優先する**
+
+1. `~/.agents/skills/agmsg/scripts/delivery.sh set monitor <cli-type> "$(pwd)"` を実行する（`<cli-type>` は Claude Code なら `claude-code`、Codex なら `codex`）
+2. 標準出力の指示に従う
+   - Claude Code: `AGMSG-DIRECTIVE` ブロックに書かれた command で Monitor tool を invoke する（現 session で受信を開始するため。無視すると次回 session 起動まで受信が始まらない）
+   - Codex: bridge 反映のため Codex session を再起動する（shim・PATH は準備済み前提）
+
+### Team Disband
+
+ユーザーが特定 team の解散を明示的に指示したときのみ実行する。日常運用では registration は放置してよく、時間・session 基準の自動解散は行わない。
+
+1. `~/.agents/skills/agmsg/scripts/team.sh <team>` で現在の member 一覧を取得しユーザーに提示する
+2. 全 member を対象に、それぞれ `~/.agents/skills/agmsg/scripts/leave.sh <team> <agent>` を実行してよいかを最終確認する
+3. 承認されたら順に leave する。最後の member 除去時に team dir は自動削除される（過去 message は残る）
 
 ## Implementation
 
