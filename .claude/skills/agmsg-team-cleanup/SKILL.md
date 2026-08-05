@@ -57,9 +57,9 @@ Entry 時に、team 名の有無を確認する:
 - 削除対象の message 件数を取得する:
 
 ```bash
+TEAM_ESC=$(printf '%s' "$TEAM" | sed "s/'/''/g")
 sqlite3 ~/.agents/skills/agmsg/db/messages.db \
-  ".param set :team '<TEAM>'" \
-  "SELECT COUNT(*) FROM messages WHERE team=:team;"
+  "SELECT COUNT(*) FROM messages WHERE team='$TEAM_ESC';"
 ```
 
 - DB が存在しない場合は 0 件として扱う
@@ -85,9 +85,9 @@ user が承認したら Step 5 へ進む。拒否されたら skill を終了す
 - 以下を実行し、削除件数を記録する:
 
 ```bash
+TEAM_ESC=$(printf '%s' "$TEAM" | sed "s/'/''/g")
 sqlite3 ~/.agents/skills/agmsg/db/messages.db \
-  ".param set :team '<TEAM>'" \
-  "DELETE FROM messages WHERE team=:team;"
+  "DELETE FROM messages WHERE team='$TEAM_ESC';"
 ```
 
 - DB が存在しない場合はこの Step をスキップする
@@ -115,9 +115,9 @@ sqlite3 ~/.agents/skills/agmsg/db/messages.db \
 - 各 orphan team ごとに件数を取得する:
 
 ```bash
+t_esc=$(printf '%s' "$t" | sed "s/'/''/g")
 sqlite3 ~/.agents/skills/agmsg/db/messages.db \
-  ".param set :team '<orphan>'" \
-  "SELECT COUNT(*) FROM messages WHERE team=:team;"
+  "SELECT COUNT(*) FROM messages WHERE team='$t_esc';"
 ```
 
 - DB が存在しない場合は「orphan 検出対象なし」として Step 8 をスキップする
@@ -130,9 +130,9 @@ sqlite3 ~/.agents/skills/agmsg/db/messages.db \
 
 ```bash
 for t in "${ORPHANS[@]}"; do
+  t_esc=$(printf '%s' "$t" | sed "s/'/''/g")
   sqlite3 ~/.agents/skills/agmsg/db/messages.db \
-    ".param set :team '$t'" \
-    "DELETE FROM messages WHERE team=:team;"
+    "DELETE FROM messages WHERE team='$t_esc';"
 done
 ```
 
@@ -150,7 +150,7 @@ done
 - 承認 point は 2 箇所（Step 4 の team disband 承認 / Step 8 の orphan purge 承認）。それぞれ「何を消すか」を数値で提示してから聞く
 - 承認前は DB / team dir に一切書き込まない
 - 削除は不可逆。backup は取らない — user が明示指示した削除であること、backup を残すのは skill の目的（残骸を消す）に反することが理由
-- SQL は sqlite3 の parameter binding（`.param set`）を使い、team 名を string 展開しない — `~/.agents/skills/agmsg/scripts/history.sh` の `_agmsg_sqlesc` と同等の防御を維持する
+- SQL に team 名を渡すときは必ず SQL `''` escape（`sed "s/'/''/g"`）してから string literal として埋め込む。`sqlite3` CLI の `.param set` は使わない — dot-command tokenizer が SQL の `''` escape を honor せず、single quote を含む team 名で silent no-op になる（同 codebase の `~/.agents/skills/agmsg/scripts/spawn.sh:264-267` に文書化された既知の罠。history.sh / send.sh / inbox.sh は escape+string literal の pattern を採用）
 
 ## Error handling
 
