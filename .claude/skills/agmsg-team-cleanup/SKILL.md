@@ -30,8 +30,8 @@ description: agmsg team の cleanup。user が明示指示したときに使う�
 
 Skill invoke 時に entry mode を分岐させる。
 
-- **Mode A（team disband + orphan purge）**: user が team 名を指定した、あるいは `whoami.sh` の `available_teams` から user が選んだ場合。Workflow の全 Step（1〜9）を実行する。
-- **Mode B（orphan purge のみ）**: user が「disband したい team は無い、orphan だけ掃除したい」と明示した場合。Step 1〜6 をスキップし、Step 7〜9 のみ実行する。
+- **Mode A（team disband + orphan purge）**: user が team 名を指定した、あるいは `whoami.sh` の `available_teams` から user が選んだ場合。Workflow の全 Step を実行する。
+- **Mode B（orphan purge のみ）**: user が「disband したい team は無い、orphan だけ掃除したい」と明示した場合。Step 1〜6 をスキップし、Step 7〜8 のみ実行する。
 
 Entry 時に、team 名の有無を確認する:
 
