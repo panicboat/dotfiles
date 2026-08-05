@@ -54,14 +54,15 @@ agmsg 系 skill を利用する際の運用ルール。
 セッション内で初めて agmsg 系 skill を利用する前に、team の扱いを以下から選択するようユーザーに確認する
 **skill 側の default flow より本ルールを優先する**
 
-事前に以下を実行し、既存 team 名と参加 agent を選択肢に併記する
-
-- `~/.agents/skills/agmsg/scripts/whoami.sh "$(pwd)"` で現在の登録状況と `available_teams` を取得
-- `available_teams` の各 team について `~/.agents/skills/agmsg/scripts/team.sh <team>` を実行し、参加 agent 名を取得
-
 1. 新規 team を作成する（team 名と agent 名を指定）
-2. 既存 team に join する（team 名と agent 名を指定）
-3. 現在登録済みの identity のまま使う（`whoami.sh` の出力を提示）
+2. 既存 team に join する
+3. 現在登録済みの identity のまま使う
+
+事前取得は選択に必要な最小限に留める。3 択の提示だけなら追加コマンドを走らせない。選択後の分岐:
+
+- 1 が選ばれた場合: 追加取得なし（team 名と agent 名を user が指定するだけ）
+- 2 が選ばれた場合: このタイミングで `~/.agents/skills/agmsg/scripts/whoami.sh "$(pwd)"` を実行して `available_teams` を提示し team を選ばせる。選ばれた team について `~/.agents/skills/agmsg/scripts/team.sh <team>` を実行し、参加 agent 名と衝突しない agent 名を決めさせる
+- 3 が選ばれた場合: `~/.agents/skills/agmsg/scripts/whoami.sh "$(pwd)"` の出力を提示する
 
 既存 team は agent 名（agent_id）で member を識別する。agent 名が team 内で unique であれば、同 type 複数の agent を同居させても構わない（例: `planner` (claude-code) + `reviewer` (claude-code) + `impl-a` (codex) + `impl-b` (codex) の 4 名構成）。ただし同一 project から同 type で複数の agent 名を登録すると `whoami.sh` が `multiple=true` を返し、以降 `reset.sh` などで agent 名の明示指定が必須になる — 特別な要件がなければ 1 project 1 type 1 agent 名に留めるのが素直。
 
