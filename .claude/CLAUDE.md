@@ -54,16 +54,15 @@ agmsg 系 skill を利用する際の運用ルール。
 セッション内で初めて agmsg 系 skill を利用する前に、team の扱いを以下から選択するようユーザーに確認する
 **skill 側の default flow より本ルールを優先する**
 
-事前に以下を実行し、既存 team 名と参加 agent を選択肢に併記する
-
-- `~/.agents/skills/agmsg/scripts/whoami.sh "$(pwd)"` で現在の登録状況と `available_teams` を取得
-- `available_teams` の各 team について `~/.agents/skills/agmsg/scripts/team.sh <team>` を実行し、参加 agent 名を取得
-
 1. 新規 team を作成する（team 名と agent 名を指定）
-2. 既存 team に join する（team 名と agent 名を指定）
-3. 現在登録済みの identity のまま使う（`whoami.sh` の出力を提示）
+2. 既存 team に join する
+3. 現在登録済みの identity のまま使う
 
-「1. 新規 team を作成する」が選ばれた場合は、上で取得した既存 team 一覧を再度提示し、不要な team があれば先に解散するかをユーザーに確認する（解散手順は Team Disband 節）。
+事前取得は選択に必要な最小限に留める。3 択の提示だけなら追加コマンドを走らせない。選択後の分岐:
+
+- 1 が選ばれた場合: 追加取得なし（team 名と agent 名を user が指定するだけ）
+- 2 が選ばれた場合: このタイミングで `~/.agents/skills/agmsg/scripts/whoami.sh "$(pwd)"` を実行して `available_teams` を提示し team を選ばせる。選ばれた team について `~/.agents/skills/agmsg/scripts/team.sh <team>` を実行し、参加 agent 名と衝突しない agent 名を決めさせる
+- 3 が選ばれた場合: `~/.agents/skills/agmsg/scripts/whoami.sh "$(pwd)"` の出力を提示する
 
 確認が完了するまで agmsg の team join・message 送信を行わない。
 
@@ -76,11 +75,3 @@ Team Selection で 1 or 2（`join.sh` を実行する経路）を選んだあと
 2. 標準出力の指示に従う
    - Claude Code: `AGMSG-DIRECTIVE` ブロックに書かれた command で Monitor tool を invoke する（現 session で受信を開始するため。無視すると次回 session 起動まで受信が始まらない）
    - Codex: bridge 反映のため Codex session を再起動する（shim・PATH は準備済み前提）
-
-### Team Disband
-
-ユーザーが特定 team の解散を明示的に指示したときのみ実行する。日常運用では registration は放置してよく、時間・session 基準の自動解散は行わない。
-
-1. `~/.agents/skills/agmsg/scripts/team.sh <team>` で現在の member 一覧を取得しユーザーに提示する
-2. 全 member を対象に、それぞれ `~/.agents/skills/agmsg/scripts/leave.sh <team> <agent>` を実行してよいかを最終確認する
-3. 承認されたら順に leave する。最後の member 除去時に team dir は自動削除される（過去 message は残る）
