@@ -64,8 +64,6 @@ agmsg 系 skill を利用する際の運用ルール。
 - 2 が選ばれた場合: このタイミングで `~/.agents/skills/agmsg/scripts/whoami.sh "$(pwd)"` を実行して `available_teams` を提示し team を選ばせる。選ばれた team について `~/.agents/skills/agmsg/scripts/team.sh <team>` を実行し、参加 agent 名と衝突しない agent 名を決めさせる
 - 3 が選ばれた場合: `~/.agents/skills/agmsg/scripts/whoami.sh "$(pwd)"` の出力を提示する
 
-既存 team は agent 名（agent_id）で member を識別する。agent 名が team 内で unique であれば、同 type 複数の agent を同居させても構わない（例: `planner` (claude-code) + `reviewer` (claude-code) + `impl-a` (codex) + `impl-b` (codex) の 4 名構成）。ただし同一 project から同 type で複数の agent 名を登録すると `whoami.sh` が `multiple=true` を返し、以降 `reset.sh` などで agent 名の明示指定が必須になる — 特別な要件がなければ 1 project 1 type 1 agent 名に留めるのが素直。
-
 確認が完了するまで agmsg の team join・message 送信を行わない。
 
 ### Delivery Mode
