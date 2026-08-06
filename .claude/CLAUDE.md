@@ -47,11 +47,11 @@ skill が生成する spec / plan を commit するかを作業開始時に一�
 
 ## agmsg
 
-agmsg 系 skill を利用する際の運用ルール。
+fujibee/agmsg 純正 skill（`agmsg:agmsg`）を利用する際の運用ルール。カスタム skill（`agmsg-driven-development`, `agmsg-team-cleanup` 等）には適用しない。
 
 ### Team Selection
 
-セッション内で初めて agmsg 系 skill を利用する前に、team の扱いを以下から選択するようユーザーに確認する
+セッション内で初めて fujibee/agmsg 純正 skill を利用する前に、team の扱いを以下から選択するようユーザーに確認する
 **skill 側の default flow より本ルールを優先する**
 
 1. 新規 team を作成する（team 名と agent 名を指定）
@@ -64,7 +64,7 @@ agmsg 系 skill を利用する際の運用ルール。
 - 2 が選ばれた場合: このタイミングで `~/.agents/skills/agmsg/scripts/whoami.sh "$(pwd)"` を実行して `available_teams` を提示し team を選ばせる。選ばれた team について `~/.agents/skills/agmsg/scripts/team.sh <team>` を実行し、参加 agent 名と衝突しない agent 名を決めさせる
 - 3 が選ばれた場合: `~/.agents/skills/agmsg/scripts/whoami.sh "$(pwd)"` の出力を提示する
 
-確認が完了するまで agmsg の team join・message 送信を行わない。
+確認が完了するまで fujibee/agmsg 純正 skill の team join・message 送信を行わない。
 
 ### Delivery Mode
 
