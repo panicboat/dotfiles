@@ -75,12 +75,29 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
 
 完了条件: Codex の停止を検知し、report の STATUS を読んだこと。
 
-1. `herdr agent wait "$PANE" --until done --until blocked --until idle --timeout 3600000` でブロックする。`--until idle` は必須。session への 2 回目以降の prompt（Redispatch）では、Codex は完了時に `done` を経由せず `working` → `idle` に戻るため、`--until done --until blocked` だけでは永久にブロックする
-2. report file の STATUS 行（DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED）を読む。herdr state は「いつ読むか」、STATUS は「何が起きたか」の source of truth
-3. timeout（wait が非ゼロ終了）なら report file を確認する。STATUS があればそれを採用。無ければ commit の有無（`git log`）と worktree の状態を見てユーザーに報告し、指示を待つ（勝手に再起動しない）
+1. report file の出現を第一の完了信号として待つ。herdr state は補助信号、`WAIT_BUDGET` は打ち切り線:
+   ```bash
+   REPORT=<report file の絶対パス>
+   WAIT_BUDGET=1200   # 秒。超えたら諦めるのではなく、状況を見てユーザーに報告する
+   DEADLINE=$(( $(date +%s) + WAIT_BUDGET ))
+   OUTCOME=timeout
+   while :; do
+     grep -q '^STATUS:' "$REPORT" 2>/dev/null && { OUTCOME=report; break; }
+     ST=$(herdr agent get "$PANE" 2>/dev/null | jq -r '.result.agent.agent_status')
+     case "$ST" in done|blocked|idle) OUTCOME="state:$ST"; break;; esac
+     [ "$(date +%s)" -ge "$DEADLINE" ] && break
+     sleep 5
+   done
+   echo "OUTCOME=$OUTCOME"
+   ```
+   `idle` を完了と見なせるのは、Dispatch 手順 6 で `working` への遷移を確認済みだから。あの確認を飛ばすとこのループは即座に「完了」と誤判定する
+2. report file の STATUS 行（DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED）を読む。STATUS が「何が起きたか」の source of truth
+3. `OUTCOME=timeout` なら停止ではなくチェックポイントとして扱う。report file、`git log`、`git status` を見て、実際にどこまで進んでいるかを確かめてからユーザーに報告し、指示を待つ（勝手に再起動しない）
 4. STATUS は SDD の Handling Implementer Status に従って処理する。DONE → SDD どおり review-package → task reviewer subagent
 
-`herdr agent read` は環境によって空を返し、pane 出力による診断ができない。観測手段は `agent_status` の遷移と report file の 2 つだけと前提を置く。wait が返らないときに Codex が固まったと判断する前に、まず `git log` を見る——作業は終わって commit まで済んでいることがある。
+**report file を第一信号にする理由**: `STATUS:` 行は dispatch prompt が Codex に「最後に書け」と指示している本 skill 自身の契約であり、herdr の state machine から独立している。herdr state を第一信号にすると、初回 prompt と Redispatch で遷移が違う・`agent read` が空を返すといった癖に依存し、まだ観測していない同種の癖でも同じ形で止まる。`herdr agent wait` は使わない——`--until` の集合を間違えると無言で永久にブロックし、それが停止と正常な待機の区別を最も難しくする形の失敗になる。
+
+**`WAIT_BUDGET` を有限にする理由**: 打ち切り線が無い（あるいは 60 分のように長すぎる）と、手順 3 の復旧手順が実行されないままになる。ハングと正常な待機が観測上区別できず、ユーザーから見ても「進んでいるのか止まっているのか分からない」状態が続く。長いタスクで足りなければ延ばしてよいが、無効化はしない。
 
 ## Redispatch
 
@@ -89,7 +106,10 @@ NEEDS_CONTEXT・BLOCKED・レビュー指摘の fix は、生きた Codex に投
 1. dispatch file の末尾に `## Redispatch N` 見出しで回答・追加 context・findings を追記する（記録用。fix の内容要件は SDD の fix dispatch に従う）
 2. 生きた Codex に投げる: `herdr agent prompt "$PANE" "<回答/findings。詳細は task-N-dispatch.md の ## Redispatch N を見よ>"`
 3. Dispatch 手順 6 と同じ方法で `agent_status` が `working` に遷移したことを確認する
-4. Await（`herdr agent wait "$PANE" --until done --until blocked --until idle --timeout 3600000`）を実行する
+4. Await を実行する。Redispatch では report file に既に前ラウンドの `STATUS:` 行があるため、手順 1 のループはそのままでは即座に完了と誤判定する。ループに入る前に、この fix round で追記される見出し（例 `## Fix round N`）の出現を待つ条件に差し替える:
+   ```bash
+   grep -q '^## Fix round N' "$REPORT" 2>/dev/null && { OUTCOME=report; break; }
+   ```
 
 生きた Codex に投げ返すことで作業中の文脈を保持する。タスクを跨ぐとき（次タスク）だけ pane を閉じて fresh に開き直す。
 
@@ -110,5 +130,7 @@ SDD の Red Flags に加えて、以下をしてはならない。
 - タスク途中の質問・fix で pane を閉じる（作業中の文脈を捨てる。Redispatch で生きた Codex に投げる）
 - Teardown を飛ばして run を終える（Codex pane が残る）
 - `agent start` の成功や `agent prompt` の成功をもって Codex が動き出したと見なす（どちらも成功を返したまま Codex が何もしていないことがある。`agent_status` が `working` になるまでが 1 セット）
-- `agent wait` から `--until idle` を落とす（Redispatch で永久にブロックする）
-- wait が返らないことを理由に pane を作り直す（`git log` を見る前に文脈を捨てている）
+- 完了検知を herdr state だけに頼る（初回 prompt と Redispatch で遷移が違う。report file の `STATUS:` を第一信号にする）
+- 打ち切り線の無い、あるいは数十分に及ぶ待機に入る（ハングと正常な待機が区別できなくなり、Await 手順 3 の復旧手順も発火しない）
+- 待機が返らないことを理由に pane を作り直す（`git log` を見る前に文脈を捨てている。作業は終わって commit 済みのことがある）
+- Redispatch の待機で前ラウンドの `STATUS:` 行を完了信号として拾う（即座に誤判定する。その round で追記される見出しを待つ）
