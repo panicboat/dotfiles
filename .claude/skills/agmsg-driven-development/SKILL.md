@@ -58,7 +58,7 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
      --wait --until working --timeout 15000
    ```
 
-   `--wait` なしだと、agent が prompt を受け取れない状態でも成功が返り、投入されないまま待ちに入る。`agent_prompt_stalled` が返ったら投入は失敗しているので、同じコマンドを 1 回だけ再実行し、再失敗はユーザーに報告して指示を待つ。
+   `--wait` なしだと、agent が prompt を受け取れない状態でも成功が返り、投入されないまま待ちに入る。`agent_prompt_stalled` が返ったら投入は失敗しているので、次の手順 7 で原因を特定してから投げ直す。
 
 7. 投入されたことを確認する。`~/.codex/history.jsonl` の末尾に今の prompt が現れていること:
 
@@ -66,7 +66,14 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
    tail -1 ~/.codex/history.jsonl
    ```
 
-   Codex は受け取った prompt をここに追記する。`herdr pane read` は新規 pane では空を返すことがあり配信確認には使えない。
+   Codex は受け取った prompt をここに追記する。現れていなければ**投入されていない**。原因の第一候補は Codex の **hook trust modal**（`⚠ N hooks need review before it can run` / `Press t to trust all`）で、表示中は入力を一切受け付けず prompt は黙って捨てられる。次で確認する:
+
+   ```sh
+   herdr agent read "$PANE" --source visible --lines 40
+   ```
+
+   **`--source visible` は必須。** default の `recent` は modal 表示中に空文字列を返すため、モーダルの存在に気付けない。
+   モーダルがあれば `herdr agent send-keys "$PANE" t`（全 hook を信頼、実行前に user の確認を取る）→ `escape` で閉じ、入力プロンプト `›` が出たことを確認してから手順 6 をやり直す。承認は永続するので同一マシンで一度きり。
 
 ## Await
 
@@ -101,6 +108,8 @@ SDD の Red Flags に加えて、以下をしてはならない。
 - herdr session 外で実行する（pane split の元 pane が無い）
 - codex integration 未導入で実行する（done/blocked を検出できず wait が返らない）
 - `--wait` なしで `herdr agent prompt` を使う（投入されなくても成功が返るため、Codex が動かない原因を pane や codex 本体に誤って求めることになる）
+- 画面確認を `--source visible` なしで行う（default の `recent` は modal 表示中に空を返す。空だからといって「画面が読めない」と結論しない）
+- prompt が届かないときに pane を作り直す（hook trust modal は pane を作り直しても再発する。まず `--source visible` で画面を見る）
 - `herdr agent start` の出力を捨てる（起動失敗に気づけない。Codex は自己更新を検出すると "Please restart Codex" と表示して終了することがあり、その場合 prompt は死んだプロセスに投入される）
 - タスクを跨いで同じ pane を使い回す（fresh-per-task を壊す。タスク完了で close し次は新 pane）
 - タスク途中の質問・fix で pane を閉じる（作業中の文脈を捨てる。Redispatch で生きた Codex に投げる）
