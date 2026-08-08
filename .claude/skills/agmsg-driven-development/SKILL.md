@@ -45,8 +45,28 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
 4. その pane で Codex を起動する:
    `herdr agent start implementer --kind codex --pane "$PANE" --timeout 120000`
    失敗したら `herdr pane close "$PANE"` で pane を掃除し、手順 3〜4（新しい pane を split し直して agent start）を 1 回だけやり直す。再失敗はユーザーに報告して指示を待つ
-5. boot prompt を投入する:
-   `herdr agent prompt "$PANE" "Read <dispatch file の絶対パス> and follow it exactly."`
+5. agent が pane に登録されるまで待つ。登録前に prompt を投げると `agent_not_found` になる:
+
+   ```sh
+   until [ "$(herdr pane list | jq -r --arg p "$PANE" '.result.panes[]?|select(.pane_id==$p)|.agent')" = "codex" ]; do sleep 2; done
+   ```
+
+6. boot prompt を投入する。**`--wait` を必ず付ける**:
+
+   ```sh
+   herdr agent prompt "$PANE" "Read <dispatch file の絶対パス> and follow it exactly." \
+     --wait --until working --timeout 15000
+   ```
+
+   `--wait` なしだと、agent が prompt を受け取れない状態でも成功が返り、投入されないまま待ちに入る。`agent_prompt_stalled` が返ったら投入は失敗しているので、同じコマンドを 1 回だけ再実行し、再失敗はユーザーに報告して指示を待つ。
+
+7. 投入されたことを確認する。`~/.codex/history.jsonl` の末尾に今の prompt が現れていること:
+
+   ```sh
+   tail -1 ~/.codex/history.jsonl
+   ```
+
+   Codex は受け取った prompt をここに追記する。`herdr pane read` は新規 pane では空を返すことがあり配信確認には使えない。
 
 ## Await
 
@@ -62,7 +82,7 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
 NEEDS_CONTEXT・BLOCKED・レビュー指摘の fix は、生きた Codex に投げ返す（pane を閉じない）。完了条件: prompt 投入と Await が完了したこと。
 
 1. dispatch file の末尾に `## Redispatch N` 見出しで回答・追加 context・findings を追記する（記録用。fix の内容要件は SDD の fix dispatch に従う）
-2. 生きた Codex に投げる: `herdr agent prompt "$PANE" "<回答/findings。詳細は task-N-dispatch.md の ## Redispatch N を見よ>"`
+2. 生きた Codex に投げる。Dispatch と同様 `--wait` を必ず付ける: `herdr agent prompt "$PANE" "<回答/findings。詳細は task-N-dispatch.md の ## Redispatch N を見よ>" --wait --until working --timeout 15000`
 3. Await（`herdr agent wait "$PANE" --until done --until blocked --timeout 3600000`）を実行する
 
 生きた Codex に投げ返すことで作業中の文脈を保持する。タスクを跨ぐとき（次タスク）だけ pane を閉じて fresh に開き直す。
@@ -80,6 +100,8 @@ SDD の Red Flags に加えて、以下をしてはならない。
 
 - herdr session 外で実行する（pane split の元 pane が無い）
 - codex integration 未導入で実行する（done/blocked を検出できず wait が返らない）
+- `--wait` なしで `herdr agent prompt` を使う（投入されなくても成功が返るため、Codex が動かない原因を pane や codex 本体に誤って求めることになる）
+- `herdr agent start` の出力を捨てる（起動失敗に気づけない。Codex は自己更新を検出すると "Please restart Codex" と表示して終了することがあり、その場合 prompt は死んだプロセスに投入される）
 - タスクを跨いで同じ pane を使い回す（fresh-per-task を壊す。タスク完了で close し次は新 pane）
 - タスク途中の質問・fix で pane を閉じる（作業中の文脈を捨てる。Redispatch で生きた Codex に投げる）
 - Teardown を飛ばして run を終える（Codex pane が残る）
