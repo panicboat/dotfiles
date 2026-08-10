@@ -12,7 +12,7 @@ superpowers:subagent-driven-development（以下 SDD）の実行構造を維持�
 開始前に以下を確認する。ひとつでも欠けていれば、欠けている項目を報告して SDD での実行を提案する。
 
 1. `command -v herdr` が成功する
-2. herdr session 内である（`herdr pane current` が成功する）。session 外なら停止し、herdr を起動してその中で claude を動かすようユーザーに促す
+2. herdr session 内である（`herdr pane current` が成功する）。失敗したら**エラーの中身を読んでから対処を決める**。session 外なら herdr を起動してその中で claude を動かすようユーザーに促す。`protocol_mismatch`（client と server の version 差）なら herdr server の再起動が要り、エラーメッセージが実行すべき `herdr server stop` コマンドを socket path 付きで示すので、それをユーザーに提示する。**server 再起動は既存 pane のプロセスを落とす**ため、勝手に実行せず確認を取る
 3. codex integration が入っている（`herdr integration status | grep '^codex:'` の行が `not installed` でない）。この status の語彙は `current (vN)` / `not installed` で、`installed` という文字列は出力されない。未導入なら `herdr integration install codex` の実行を促す。これが無いと herdr は Codex の done/blocked を検出できない
 
 ## Setup
@@ -40,26 +40,48 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
 
 1. BASE commit を記録し、SDD の task-brief script で brief file を生成する
 2. codex-dispatch-prompt.md の `{{...}}` をすべて埋め、brief と同じディレクトリの `task-N-dispatch.md` に書く
-3. Codex 用の pane を作る（controller の pane を分割、cwd を worktree に）:
-   `PANE=$(herdr pane split --current --direction right --cwd "$PROJECT" | jq -r '.result.pane.pane_id')`
-4. その pane で Codex を起動する。split 直後の pane はまだ shell が idle と認識されておらず `agent start` が `agent_pane_busy` を返すため、成功するまでリトライする:
+3. Codex 用の pane を作る（controller の pane を分割、cwd を worktree に）。**`PANE` が取れたことを確認してから進む**。取れないまま進むと以降の全コマンドが空文字列を target にして無関係なエラーを出す:
+
+   ```sh
+   PANE=$(herdr pane split --current --direction right --cwd "$PROJECT" | jq -r '.result.pane.pane_id')
+   case "$PANE" in ""|null) echo "SPLIT_FAILED"; exit 1;; esac
+   ```
+
+4. その pane で Codex を起動する。**agent 名は herdr server 全体で一意**でなければならず、他プロジェクトの run が同じ名前を使っていると `agent_name_taken` で失敗するため、worktree 名から導出する:
+
+   ```sh
+   AGENT="impl-$(basename "$PROJECT")"
+   ```
+
+   split 直後の pane はまだ shell が idle と認識されておらず `agent start` が `agent_pane_busy` を返すため、成功するまでリトライする。ただし**リトライで解消する失敗としない失敗を分ける**:
 
    ```sh
    for i in $(seq 1 20); do
-     OUT=$(herdr agent start implementer --kind codex --pane "$PANE" --timeout 120000 2>&1)
+     OUT=$(herdr agent start "$AGENT" --kind codex --pane "$PANE" --timeout 120000 2>&1)
      printf '%s' "$OUT" | grep -q '"error"' || break
+     # 名前衝突は待っても解消しない。即座に抜けて名前を変える
+     printf '%s' "$OUT" | grep -q 'agent_name_taken' && break
      sleep 2
    done
    printf '%s' "$OUT" | grep -q '"error"' && { echo "START_FAILED"; printf '%s\n' "$OUT"; exit 1; }
    ```
 
-   リトライが枯渇したらユーザーに報告して指示を待つ
+   `agent_name_taken` なら `AGENT` に suffix を足して 1 度だけやり直す。それ以外でリトライが枯渇したらユーザーに報告して指示を待つ
 
-5. agent が pane に登録されるまで待つ。登録前に prompt を投げると `agent_not_found` になる:
+5. agent が pane に登録され、かつ TUI が入力を受け付けるまで待つ。登録前に prompt を投げると `agent_not_found` になり、登録直後でも TUI が未応答なら prompt は捨てられる。**この 2 つは別の条件**なので両方待つ:
 
    ```sh
-   until [ "$(herdr pane list | jq -r --arg p "$PANE" '.result.panes[]?|select(.pane_id==$p)|.agent')" = "codex" ]; do sleep 2; done
+   REGISTERED=no
+   for i in $(seq 1 15); do
+     [ "$(herdr pane list | jq -r --arg p "$PANE" '.result.panes[]?|select(.pane_id==$p)|.agent' 2>/dev/null)" = "codex" ] \
+       && { REGISTERED=yes; break; }
+     sleep 2
+   done
+   [ "$REGISTERED" = "no" ] && { echo "NOT_REGISTERED"; herdr pane list; exit 1; }
+   sleep 5   # 登録は TUI の準備完了を意味しない
    ```
+
+   **上限を切る。** `herdr` 自体が落ちている・protocol mismatch を起こしている場合、エラー応答でも jq は空を返すだけなので、`until` で回すと永久にハングする。枯渇したら `herdr pane list` の生出力をユーザーに見せて指示を待つ
 
 6. boot prompt を投入する。**`--wait` を必ず付ける**:
 
@@ -68,15 +90,19 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
      --wait --until working --timeout 15000
    ```
 
-   `--wait` なしだと、agent が prompt を受け取れない状態でも成功が返り、投入されないまま待ちに入る。`agent_prompt_stalled` が返ったら投入は失敗しているので、次の手順 7 で原因を特定してから投げ直す。
+   `--wait` なしだと、agent が prompt を受け取れない状態でも成功が返り、投入されないまま待ちに入る。`--until working` を付けるので、成功して返った時点で投入は確定している。
 
-7. 投入されたことを確認する。`~/.codex/history.jsonl` の末尾に今の prompt が現れていること:
+   Await 節が `herdr agent wait` を禁じているのと矛盾しないのは、**`--timeout` で上限を切っているから**。無言で永久にブロックする失敗形にはならず、超過すれば `timeout` が返る。
+
+   `agent_prompt_stalled` が返ったら投入は失敗している。**そのときだけ**手順 7 で原因を特定してから、手順 6 をやり直す。
+
+7. **（手順 6 が `agent_prompt_stalled` を返した場合のみ）** 原因を特定する。まず投入の有無を切り分ける:
 
    ```sh
    tail -1 ~/.codex/history.jsonl
    ```
 
-   Codex は受け取った prompt をここに追記する。現れていなければ**投入されていない**。原因の第一候補は Codex の **hook trust modal**（`⚠ N hooks need review before it can run` / `Press t to trust all`）で、表示中は入力を一切受け付けず prompt は黙って捨てられる。次で確認する:
+   Codex は受け取った prompt をここに追記する。末尾に今の prompt が無ければ**投入されていない**。原因の第一候補は Codex の **hook trust modal**（`⚠ N hooks need review before it can run` / `Press t to trust all`）で、表示中は入力を一切受け付けず prompt は黙って捨てられる。次で確認する:
 
    ```sh
    herdr agent read "$PANE" --source visible --lines 40
@@ -85,7 +111,7 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
    **`--source visible` は必須。** default の `recent` は modal 表示中に空文字列を返すため、モーダルの存在に気付けない。
    モーダルがあれば `herdr agent send-keys "$PANE" t`（全 hook を信頼、実行前に user の確認を取る）→ `escape` で閉じ、入力プロンプト `›` が出たことを確認してから手順 6 をやり直す。承認は永続するので同一マシンで一度きり。
 
-手順 5〜7 を省くと、`agent prompt` は成功を返すのに Codex は何もしない。`agent_status` は `idle` のままで、report file も commit も生成されない。「`agent start` が成功したから prompt を投げてよい」という読み方が原因。
+手順 5 の待機と手順 6 の `--wait` を省くと、`agent prompt` は成功を返すのに Codex は何もしない。`agent_status` は `idle` のままで、report file も commit も生成されない。「`agent start` が成功したから prompt を投げてよい」という読み方が原因。
 
 ## Await
 
@@ -93,7 +119,7 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
 
 1. report file の出現を第一の完了信号として待つ。herdr state は補助信号、`WAIT_BUDGET` は打ち切り線:
    ```sh
-   REPORT=<report file の絶対パス>
+   REPORT="/abs/path/to/task-N-report.md"   # 実際の絶対パスに置き換える
    WAIT_BUDGET=1200   # 秒。超えたら諦めるのではなく、状況を見てユーザーに報告する
    DEADLINE=$(( $(date +%s) + WAIT_BUDGET ))
    OUTCOME=timeout
@@ -140,10 +166,10 @@ NEEDS_CONTEXT・BLOCKED・レビュー指摘の fix は、生きた Codex に投
 SDD の Red Flags に加えて、以下をしてはならない。
 
 - herdr session 外で実行する（pane split の元 pane が無い）
-- codex integration 未導入で実行する（done/blocked を検出できず wait が返らない）
+- codex integration 未導入で実行する（`agent_status` が更新されず、Await の補助信号が機能しない）
 - `herdr agent start` の出力を捨てる（起動失敗に気づけない。Codex は自己更新を検出すると "Please restart Codex" と表示して終了することがあり、その場合 prompt は死んだプロセスに投入される）
-- `--wait` なしで `herdr agent prompt` を使う（投入されなくても成功が返るため、Codex が動かない原因を pane や codex 本体に誤って求めることになる）
-- `agent start` の成功や `agent prompt` の成功をもって Codex が動き出したと見なす（どちらも成功を返したまま Codex が何もしていないことがある。`agent_status` が `working` になるまでが 1 セット）
+- `agent start` の成功をもって prompt を投げてよいと見なす（登録も TUI 準備も終わっていない。手順 5 で両方待つ）
+- `--wait` なしで `herdr agent prompt` を使う（投入されなくても成功が返る。`--until working` まで確認して 1 セット）
 - 画面確認を `--source visible` なしで行う（default の `recent` は modal 表示中に空を返す。空だからといって「画面が読めない」と結論しない）
 - prompt が届かないときに pane を作り直す（hook trust modal は pane を作り直しても再発する。まず `--source visible` で画面を見る）
 - 完了検知を herdr state だけに頼る（初回 prompt と Redispatch で遷移が違う。report file の `STATUS:` を第一信号にする）
