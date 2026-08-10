@@ -31,7 +31,7 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
 | Task tool で implementer subagent を dispatch | Dispatch 節の手順で Codex を herdr agent として起動 |
 | implementer-prompt.md | 本 skill と同じディレクトリの codex-dispatch-prompt.md |
 | implementer の返値による報告 | report file + herdr agent state（Await 節） |
-| 質問回答・追加 context・fix の再依頼 | 生きた codex への `herdr agent prompt`（Redispatch 節） |
+| 質問回答・追加 context・fix の再依頼 | 生きた codex への `send-text` + `send-keys`（Redispatch 節） |
 | implementer への Model Selection | Codex は既定モデル |
 
 ## Dispatch
@@ -83,26 +83,29 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
 
    **上限を切る。** `herdr` 自体が落ちている・protocol mismatch を起こしている場合、エラー応答でも jq は空を返すだけなので、`until` で回すと永久にハングする。枯渇したら `herdr pane list` の生出力をユーザーに見せて指示を待つ
 
-6. boot prompt を投入する。**`--wait` を必ず付ける**:
+6. boot prompt を投入する。**`herdr agent prompt` を使わない。** `send-text` で入力欄に置き、`send-keys Enter` で送信する:
 
    ```sh
-   herdr agent prompt "$PANE" "Read <dispatch file の絶対パス> and follow it exactly." \
-     --wait --until working --timeout 15000
+   herdr pane send-text "$PANE" "Read <dispatch file の絶対パス> and follow it exactly."
+   sleep 2
+   herdr pane send-keys "$PANE" Enter
    ```
 
-   `--wait` なしだと、agent が prompt を受け取れない状態でも成功が返り、投入されないまま待ちに入る。`--until working` を付けるので、成功して返った時点で投入は確定している。
+   `herdr agent prompt` は `--wait --until working` を付けても**投入せずに成功を返すこと**がある。`--wait` の判定は「状態が `working` に変化したか」であり、起動直後の codex は初期化で一過性に `working` を通るため、**prompt と無関係な遷移を拾って偽陽性になる**（`--help` の "It does not track turns" が示す挙動）。実測でも、成功が返ったのに入力欄はプレースホルダのまま、history にも記録なし、という状態になった。
 
-   Await 節が `herdr agent wait` を禁じているのと矛盾しないのは、**`--timeout` で上限を切っているから**。無言で永久にブロックする失敗形にはならず、超過すれば `timeout` が返る。
-
-   `agent_prompt_stalled` が返ったら投入は失敗している。**そのときだけ**手順 7 で原因を特定してから、手順 6 をやり直す。
-
-7. **（手順 6 が `agent_prompt_stalled` を返した場合のみ）** 原因を特定する。まず投入の有無を切り分ける:
+7. **投入されたことを必ず確認する。** 手順 6 は成否を返さないので、この確認が唯一の判定手段:
 
    ```sh
    tail -1 ~/.codex/history.jsonl
    ```
 
-   Codex は受け取った prompt をここに追記する。末尾に今の prompt が無ければ**投入されていない**。原因の第一候補は Codex の **hook trust modal**（`⚠ N hooks need review before it can run` / `Press t to trust all`）で、表示中は入力を一切受け付けず prompt は黙って捨てられる。次で確認する:
+   Codex は受け取った prompt をここに追記する。**行数が増え、末尾が今の prompt であること**を確認する。あわせて `agent_status` が `working` に遷移したことも確認する（Await が `idle` を完了と見なせる根拠はこの遷移）:
+
+   ```sh
+   herdr pane list | jq -r --arg p "$PANE" '.result.panes[]?|select(.pane_id==$p)|.agent_status'
+   ```
+
+   末尾に今の prompt が無ければ**投入されていない**。原因の第一候補は Codex の **hook trust modal**（`⚠ N hooks need review before it can run` / `Press t to trust all`）で、表示中は入力を一切受け付けず prompt は黙って捨てられる。次で確認する:
 
    ```sh
    herdr agent read "$PANE" --source visible --lines 40
@@ -111,7 +114,7 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
    **`--source visible` は必須。** default の `recent` は modal 表示中に空文字列を返すため、モーダルの存在に気付けない。
    モーダルがあれば `herdr agent send-keys "$PANE" t`（全 hook を信頼、実行前に user の確認を取る）→ `escape` で閉じ、入力プロンプト `›` が出たことを確認してから手順 6 をやり直す。承認は永続するので同一マシンで一度きり。
 
-手順 5 の待機と手順 6 の `--wait` を省くと、`agent prompt` は成功を返すのに Codex は何もしない。`agent_status` は `idle` のままで、report file も commit も生成されない。「`agent start` が成功したから prompt を投げてよい」という読み方が原因。
+手順 5 の待機と手順 7 の確認を省くと、投入されないまま Await に入る。`agent_status` は `idle` のままで、report file も commit も生成されない。「コマンドが成功を返したから投入された」という読み方が原因で、herdr のどのコマンドもそれを保証しない。
 
 ## Await
 
@@ -132,7 +135,7 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
    done
    echo "OUTCOME=$OUTCOME"
    ```
-   `idle` を完了と見なせるのは、Dispatch 手順 6 の `--wait --until working` で `working` への遷移を確認済みだから。あの確認を飛ばすとこのループは即座に「完了」と誤判定する
+   `idle` を完了と見なせるのは、Dispatch 手順 7 で history への記録と `working` への遷移を確認済みだから。あの確認を飛ばすとこのループは即座に「完了」と誤判定する
 2. report file の STATUS 行（DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED）を読む。STATUS が「何が起きたか」の source of truth
 3. `OUTCOME=timeout` なら停止ではなくチェックポイントとして扱う。report file、`git log`、`git status` を見て、実際にどこまで進んでいるかを確かめてからユーザーに報告し、指示を待つ（勝手に再起動しない）
 4. STATUS は SDD の Handling Implementer Status に従って処理する。DONE → SDD どおり review-package → task reviewer subagent
@@ -146,7 +149,12 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
 NEEDS_CONTEXT・BLOCKED・レビュー指摘の fix は、生きた Codex に投げ返す（pane を閉じない）。完了条件: prompt 投入と Await が完了したこと。
 
 1. dispatch file の末尾に `## Redispatch N` 見出しで回答・追加 context・findings を追記する（記録用。fix の内容要件は SDD の fix dispatch に従う）
-2. 生きた Codex に投げる。Dispatch 手順 6 と同様 `--wait` を必ず付ける: `herdr agent prompt "$PANE" "<回答/findings。詳細は task-N-dispatch.md の ## Redispatch N を見よ>" --wait --until working --timeout 15000`
+2. 生きた Codex に投げる。Dispatch 手順 6 と同じく `send-text` + `send-keys Enter` を使い、手順 7 と同じ確認を行う:
+   ```sh
+   herdr pane send-text "$PANE" "<回答/findings。詳細は task-N-dispatch.md の ## Redispatch N を見よ>"
+   sleep 2
+   herdr pane send-keys "$PANE" Enter
+   ```
 3. Await を実行する。Redispatch では report file に既に前ラウンドの `STATUS:` 行があるため、Await 手順 1 のループはそのままでは即座に完了と誤判定する。ループに入る前に、この fix round で追記される見出し（例 `## Fix round N`）の出現を待つ条件に差し替える:
    ```sh
    grep -q '^## Fix round N' "$REPORT" 2>/dev/null && { OUTCOME=report; break; }
@@ -169,7 +177,7 @@ SDD の Red Flags に加えて、以下をしてはならない。
 - codex integration 未導入で実行する（`agent_status` が更新されず、Await の補助信号が機能しない）
 - `herdr agent start` の出力を捨てる（起動失敗に気づけない。Codex は自己更新を検出すると "Please restart Codex" と表示して終了することがあり、その場合 prompt は死んだプロセスに投入される）
 - `agent start` の成功をもって prompt を投げてよいと見なす（登録も TUI 準備も終わっていない。手順 5 で両方待つ）
-- `--wait` なしで `herdr agent prompt` を使う（投入されなくても成功が返る。`--until working` まで確認して 1 セット）
+- prompt の投入に `herdr agent prompt` を使う（`--wait --until working` を付けても、起動直後の一過性の `working` を拾って投入せずに成功を返すことがある。`send-text` + `send-keys Enter` を使い、history で確認する）
 - 画面確認を `--source visible` なしで行う（default の `recent` は modal 表示中に空を返す。空だからといって「画面が読めない」と結論しない）
 - prompt が届かないときに pane を作り直す（hook trust modal は pane を作り直しても再発する。まず `--source visible` で画面を見る）
 - 完了検知を herdr state だけに頼る（初回 prompt と Redispatch で遷移が違う。report file の `STATUS:` を第一信号にする）
