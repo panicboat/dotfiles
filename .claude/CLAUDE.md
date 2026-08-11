@@ -41,13 +41,13 @@ skill が生成する spec / plan を commit するかを作業開始時に一�
 実装 plan の実行を開始する前に、実行方式を以下から選択するようユーザーに確認する
 **skill 側の既定の提案より優先する**
 
-1. agmsg-driven-development（実装を Codex に委譲してトークン使用量を分散）
+1. codex-driven-development（実装を Codex に委譲してトークン使用量を分散）
 2. subagent-driven-development（Claude subagent で実行）
 3. executing-plans（このセッションでインライン実行）
 
 ## agmsg
 
-fujibee/agmsg 純正 skill（`agmsg:agmsg`）を利用する際の運用ルール。カスタム skill（`agmsg-driven-development`, `agmsg-team-cleanup` 等）には適用しない。
+fujibee/agmsg 純正 skill（`agmsg:agmsg`）を利用する際の運用ルール。カスタム skill（`agmsg-teams-cleanup` 等）には適用しない。
 
 ### Team Selection
 
