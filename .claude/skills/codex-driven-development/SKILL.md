@@ -150,8 +150,7 @@ NEEDS_CONTEXT・BLOCKED・レビュー指摘の fix は、生きた Codex に投
 | `agent_status` が `blocked` のまま | Codex がモーダルを表示して入力待ち | `herdr agent read "$PANE" --source visible --lines 40` で種類を判定。`Do you trust the contents of this directory?` はユーザー承認を得て `send-keys Enter`、`⚠ N hooks need review` は承認を得て `send-keys t` → `escape`。どちらも承認は永続。閉じれば argv の prompt が自動投入されるので投入し直さない |
 | `agent read` が空文字列 | default の `--source recent` はモーダル表示中に空を返す | `--source visible` を付け直す。空を「画面が読めない」と解釈しない |
 | `agent start` が `agent_pane_busy` | split 直後の pane の shell がまだ idle 判定されていない | 数秒おいてリトライ（Dispatch 手順 4 のループ） |
-| `agent start` が `agent_name_taken` | 同名 agent が herdr server 全体に既存 | 待っても解消しない。`AGENT` に suffix を足す |
-| 起動直後に "Please restart Codex" | Codex が自己更新を検出して終了 | pane を閉じ、Codex を更新してから起動し直す。死んだプロセスに prompt を投げない |
+| `agent start` が `agent_name_taken` | 同名 agent が herdr server 全体に既存 | 待っても解消しない。error message が保持側の `pane_id` と `cwd` を示すので、前 run の残骸なら閉じ、並行 run なら `AGENT` に suffix を足して 1 度だけやり直す |
 | Await が `WAIT_BUDGET` 超過 | 停止とは限らない | `git log` / `git status` / report file で実際の到達点を確かめ、ユーザーに報告して指示を待つ。**pane を作り直さない**——作業は完了・commit 済みのことがある |
 | Redispatch 後の Await が即完了 | report file に前ラウンドの `STATUS:` が残っている | 第一信号をその round の見出し（`## Fix round N`）に差し替える（Redispatch 手順 4） |
 | herdr がエラーを返すのに jq が空を返す | herdr 停止 / protocol mismatch | ループは必ず上限で打ち切り、生出力をユーザーに見せる。`until` で無限に回さない |
