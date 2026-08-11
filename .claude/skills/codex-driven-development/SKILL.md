@@ -63,13 +63,20 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
 
    `--` 以降は codex の positional PROMPT にそのまま渡る（`codex [OPTIONS] [PROMPT]`）。**prompt が起動時に確定するので TUI への投入競合が無い**。起動直後にモーダルが出ても prompt はキューされ、モーダルを閉じた時点で自動投入される。リトライは `agent_pane_busy`（split 直後の shell がまだ idle 判定されていない）向けで、`agent_name_taken` は待っても解消しないので即座に抜けて `AGENT` に suffix を足して 1 度だけやり直す。それ以外でリトライが枯渇したらユーザーに報告して指示を待つ
 
-5. モーダルで止まっていないことを確認する:
+5. prompt が処理に入ったことを確認する。`agent start` 直後は `idle`（まだ処理を始めていない）を通るため**単発チェックでは判定できない**。遷移するまでポーリングする:
 
    ```sh
-   herdr agent get "$PANE" | jq -r '.result.agent.agent_status'
+   for i in $(seq 1 20); do
+     ST=$(herdr agent get "$PANE" | jq -r '.result.agent.agent_status')
+     case "$ST" in working|done|blocked) break;; esac
+     sleep 3
+   done
+   echo "status=$ST"
    ```
 
-   `blocked` なら Codex がモーダルを表示して入力を待っている。Failure Modes の該当行に従って解消する。`working` / `done` なら prompt は届いている
+   - `working` / `done` — prompt は届いている。Await へ進む
+   - `blocked` — モーダルで入力待ち。Failure Modes の該当行で解消する
+   - `idle` のまま枯渇 — `tail -1 ~/.codex/history.jsonl` の末尾が今の boot prompt かを見る。一致すれば届いており Codex が遅いだけ、不一致なら届いていない
 
 ## Await
 
