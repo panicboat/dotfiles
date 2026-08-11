@@ -1,6 +1,6 @@
 ---
 name: codex-driven-development
-description: 実装 plan を実行するとき、implementer を herdr pane 上の Codex に委譲してトークン使用量を分散する。superpowers:subagent-driven-development の実行構造（タスクごとの実装 → タスクレビュー → 最終レビュー）は維持し、implementer 周りだけを置き換える。plan の実行方式として codex-driven-development が選択されたときに使用する。
+description: 実装 plan を実行するとき、implementer を herdr pane 上の Codex に委譲してトークン使用量を分散する。superpowers:subagent-driven-development の実行構造（タスクごとの実装 → タスクレビュー → 最終レビュー）は維持し、implementer 周りだけを置き換える。動作条件は herdr session 内で実行していること・codex integration が導入済みであることで、満たさなければ何も起動せず SDD での実行を提案する。plan の実行方式として codex-driven-development が選択されたときに使用する。
 ---
 
 # Codex-Driven Development
