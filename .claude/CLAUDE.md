@@ -45,11 +45,6 @@ skill が生成する spec / plan を commit するかを作業開始時に一�
 2. subagent-driven-development（Claude subagent で実行）
 3. executing-plans（このセッションでインライン実行）
 
-### Review Dispatch
-
-task reviewer・final reviewer・code reviewer 等のレビュー用 subagent に Global Constraints を渡す際は、spec 由来の要件に加えて AGENTS.md の Language・Code Markers・Git 節を常に含める。
-**skill 側の Global Constraints 生成手順より本ルールを優先する。**
-
 ## agmsg
 
 fujibee/agmsg 純正 skill（`agmsg:agmsg`）を利用する際の運用ルール。カスタム skill（`agmsg-teams-cleanup` 等）には適用しない。
