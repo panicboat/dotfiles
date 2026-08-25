@@ -3,6 +3,7 @@
   "effortLevel": "xhigh",
   "enabledPlugins": {
     "agmsg@fujibee-agmsg": true,
+    "codex@openai-codex": true,
     "compact-plus@compact-plus": true,
     "eli5@claude-community": true,
     "pixelbrowse@pixelrag-plugins": true,
@@ -28,6 +29,12 @@
     "fujibee-agmsg": {
       "source": {
         "repo": "fujibee/agmsg",
+        "source": "github"
+      }
+    },
+    "openai-codex": {
+      "source": {
+        "repo": "openai/codex-plugin-cc",
         "source": "github"
       }
     },
