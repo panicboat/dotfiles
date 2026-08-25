@@ -6,7 +6,6 @@
     "codex@openai-codex": true,
     "compact-plus@compact-plus": true,
     "eli5@claude-community": true,
-    "pixelbrowse@pixelrag-plugins": true,
     "ruby-lsp@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true
   },
@@ -35,12 +34,6 @@
     "openai-codex": {
       "source": {
         "repo": "openai/codex-plugin-cc",
-        "source": "github"
-      }
-    },
-    "pixelrag-plugins": {
-      "source": {
-        "repo": "StarTrail-org/PixelRAG",
         "source": "github"
       }
     }
