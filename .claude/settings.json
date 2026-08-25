@@ -4,6 +4,7 @@
   "enabledPlugins": {
     "agmsg@fujibee-agmsg": true,
     "compact-plus@compact-plus": true,
+    "eli5@claude-community": true,
     "pixelbrowse@pixelrag-plugins": true,
     "ruby-lsp@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true
@@ -12,6 +13,12 @@
     "CLAUDE_CODE_SUBAGENT_MODEL": "claude-sonnet-5"
   },
   "extraKnownMarketplaces": {
+    "claude-community": {
+      "source": {
+        "repo": "anthropics/claude-plugins-community",
+        "source": "github"
+      }
+    },
     "compact-plus": {
       "source": {
         "repo": "u-ichi/compact-plus",
