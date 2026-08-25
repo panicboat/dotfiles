@@ -3,9 +3,9 @@
   "effortLevel": "xhigh",
   "enabledPlugins": {
     "agmsg@fujibee-agmsg": true,
+    "codex@openai-codex": true,
     "compact-plus@compact-plus": true,
     "eli5@claude-community": true,
-    "pixelbrowse@pixelrag-plugins": true,
     "ruby-lsp@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true
   },
@@ -31,9 +31,9 @@
         "source": "github"
       }
     },
-    "pixelrag-plugins": {
+    "openai-codex": {
       "source": {
-        "repo": "StarTrail-org/PixelRAG",
+        "repo": "openai/codex-plugin-cc",
         "source": "github"
       }
     }
