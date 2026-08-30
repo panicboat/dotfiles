@@ -5,7 +5,6 @@
     "agmsg@fujibee-agmsg": true,
     "codex@openai-codex": true,
     "compact-plus@compact-plus": true,
-    "eli5@claude-community": true,
     "ruby-lsp@claude-plugins-official": true,
     "stripe@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true
