@@ -26,7 +26,7 @@
 3. **herdr と Orca で同一の挙動**: push の仕組みは Codex CLI 自身の websocket app-server bridge（`codex --remote ws://...`）によるもので、pane を提供する multiplexer 側の実装に依存しない。実地でも同じ結果だった
 4. **turn mode ではこの用途に使えない**: agmsg の `turn` delivery mode（Stop hook 相当）は「Codex 自身のターンが終わった瞬間」にしか inbox を pull しない。idle 状態の Codex を外から起こすことはできず、Redispatch には使えない。`monitor` mode（BETA）が唯一の経路
 5. **送信は delivery mode に非依存で常に成功する**: `send.sh` はメッセージを SQLite に永続化するだけなので、受信側の delivery mode に関わらず必ず成功する。Await（Codex→Claude の完了通知）はこの性質を使うので、BETA機能の bridge に依存しない
-6. **同一 (project, type) の identity 衝突**: 同じ project path・type で2つの生きた Codex セッションを同時に起動すると、agmsg の bridge/thread 解決（`thread/loaded/list`）が競合し、片方の bridge しか arm されない。team を worktree 単位でスコープすることで回避する（Setup 節参照）
+6. **同一 (project, type) の identity 衝突**: 同じ project path・type で2つの生きた Codex セッションを同時に起動すると、agmsg の bridge/thread 解決（`thread/loaded/list`）が競合し、片方の bridge しか arm されない。team を PROJECT（作業対象ディレクトリ）単位でスコープすることで回避する（Setup 節参照）
 7. **副作用**: `delivery.sh set monitor codex <project>` はプロジェクトの working tree に `.codex/hooks.json` を書き出す。git 管理下では untracked になり、誤 commit の恐れがあるため `.git/info/exclude` への追加が必要（本セッションで dotfiles リポジトリに適用済み）
 
 ## Architecture
@@ -36,7 +36,7 @@ superpowers:subagent-driven-development（SDD）の構造は維持する。Claud
 - **pane 生成/破棄**: herdr 固有 API 直書き → multiplexer adapter 契約経由に抽象化
 - **Redispatch**: TUI キー入力 → agmsg `send.sh` push（bridge が arm していれば）
 - **Await**: report file の `STATUS:` 走査 + multiplexer 固有 `agent_status` ポーリング → Codex からの agmsg 完了通知（非同期）。report file はその内容（task reviewer が読む対象）として残すが、「終わったかどうか」のシグナルの役割からは外れる
-- **新しい前提**: agmsg がインストールされており、worktree 単位の team/identity を Setup で自動プロビジョニングする
+- **新しい前提**: agmsg がインストールされており、PROJECT（作業対象ディレクトリ）単位の team/identity を Setup で自動プロビジョニングする
 
 ## Multiplexer Adapter Contract
 
@@ -76,12 +76,12 @@ pane 生成・破棄・起動直後の一度きりの対話ダイアログ処理
 完了条件: `PROJECT`・`TEAM`・両 identity が確定していること。
 
 1. Skill tool で superpowers:subagent-driven-development を読み込む（現行どおり）
-2. `PROJECT` = 作業 worktree の絶対パスを確定する（現行どおり）
-3. `TEAM` を worktree から導出する（例: `cdd-$(basename "$PROJECT")`。既存の `AGENT="impl-$(basename "$PROJECT")"` と同じ命名思想）
+2. `PROJECT` = 作業対象ディレクトリの絶対パスを確定する（現行どおり。多くの場合 worktree だが、単一ブランチでの作業等 worktree を使わないケースもあり、`PROJECT` はそのどちらでもよい）
+3. `TEAM` を `PROJECT` から導出する（例: `cdd-$(basename "$PROJECT")`。既存の `AGENT="impl-$(basename "$PROJECT")"` と同じ命名思想。worktree に限らず、`PROJECT` のパスから決定的に導出できればよい）
 4. `join.sh $TEAM claude claude-code "$PROJECT"` / `join.sh $TEAM codex codex "$PROJECT"` を idempotent に実行（既に join 済みでも成功扱い）
 5. `delivery.sh set monitor codex "$PROJECT"` を idempotent に実行
 6. Claude 自身の delivery mode が `monitor` か確認し、なければ Monitor tool を起動する
-7. `TEAM` は plan 実行全体を通して使い回す（後述 Run Teardown まで解体しない）。同一 worktree に対する再実行は既存 team に join するだけで、新規 team は作らない
+7. `TEAM` は plan 実行全体を通して使い回す（後述 Run Teardown まで解体しない）。同一 `PROJECT` に対する再実行は既存 team に join するだけで、新規 team は作らない
 
 ## Dispatch
 
@@ -124,7 +124,7 @@ pane 生成・破棄・起動直後の一度きりの対話ダイアログ処理
 | 症状 | 原因 | 一手 |
 |---|---|---|
 | bridge が `WAIT_BUDGET` 内に arm しない | Codex CLI バージョン非互換、agmsg app-server 起動失敗等（BETA機能） | fallback mode に切り替えて続行。ユーザーには push mode が使えなかった旨を報告する |
-| 同一 worktree で2つの生きた Codex pane が同時に存在する | identity 衝突で bridge/thread が競合する | 現行設計では 1 pane = 1 バッチが前提のため通常発生しない。並行バッチを将来サポートする場合は team/identity をバッチ単位でさらに分ける設計変更が必要（本 spec の対象外） |
+| 同一 `PROJECT` で2つの生きた Codex pane が同時に存在する | identity 衝突で bridge/thread が競合する | 現行設計では 1 pane = 1 バッチが前提のため通常発生しない。並行バッチを将来サポートする場合は team/identity をバッチ単位でさらに分ける設計変更が必要（本 spec の対象外） |
 | `.codex/hooks.json` が git 管理下に出現する | `delivery.sh set monitor` の副作用 | `.git/info/exclude` に `/.codex/hooks.json` を追加する（対象リポジトリで未実施なら Setup 時に確認） |
 | Orca で `send_text`+`send_keys` を同時送信すると `agent_prompt_blocked` | Orca 側のエージェント自動化ガード（詳細な発火条件は未解明） | text と enter を分離して2回に分けて送る |
 
@@ -134,3 +134,4 @@ pane 生成・破棄・起動直後の一度きりの対話ダイアログ処理
 - bridge の再接続安定性（multiplexer 再起動やセッション切れを跨いだ場合の挙動）は本セッションでは未検証
 - 将来 cmux 等の multiplexer を追加する場合は、adapter マッピング表に1行足すだけで済む設計になっているはずだが、実装時に契約が本当に十分かは要確認
 - herdr/Orca 双方の adapter 実装（実際のスクリプト化）は本 spec の範囲外。次工程の implementation plan で行う
+- **検討した代替案**: `openai-codex` plugin 同梱の `codex-companion.mjs`（`task`/`status`/`result`/`cancel`/`--resume-last`）は、pane も multiplexer も一切不要な headless job 管理を提供する（`approvalPolicy: "never"`, `sandbox: workspace-write` が既定、REASONED: コード確認済み）。本 spec が抱える「multiplexer adapter」「trust ダイアログ処理」「Batching Strategy の複雑さ」を丸ごと不要にできる可能性がある。今回 agmsg 案を選んだ理由は、Redispatch の安全性（ビジー中に割り込まないこと）と herdr/Orca 双方でのパリティを本セッションで実地検証済み（VERIFIED）である一方、`codex-companion.mjs` 側は同等の検証をしていない（ASSUMED）ため。可視性（人間が pane を直接見て介入できるか）にもトレードオフがある。将来 `codex-companion.mjs` 側の安全性を検証できれば、pane 自体を廃止する再設計の価値がある
