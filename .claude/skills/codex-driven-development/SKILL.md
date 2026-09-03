@@ -130,9 +130,26 @@ SDD の "Batch small same-shape work" が Codex 版では **バッチ = 1 pane**
 
 ## Await
 
-完了条件: Codex の停止を検知し、report の STATUS を読んだこと。
+完了条件: Codex の完了通知を受け取り、report の STATUS を読んだこと。モードは Dispatch 節末尾で決まった push mode / fallback mode に従う。
 
-1. report file の `STATUS:` を第一信号、`agent_status` を補助信号として待つ。`WAIT_BUDGET` は打ち切り線:
+**push mode**:
+
+1. Claude 側の Monitor が Setup 節で有効化済みなので、Codex が dispatch prompt の指示どおり `send.sh` で送る `STATUS: <...>` 付きメッセージは非同期の task-notification として届く。届くまでブロッキングで待つ必要はない——他の作業を進めてよい
+2. ただし「打ち切り線の無い待機」は禁止（Red Flags 参照）。通知が `WAIT_BUDGET`（1200秒を目安）内に届かない場合の安全網として、以下を軽くポーリングする:
+
+   ```sh
+   ~/.agents/skills/agmsg/scripts/inbox.sh "$TEAM" claude
+   # 何も届いていなければ bridge がまだ生きているか確認する
+   ~/.agents/skills/agmsg/scripts/delivery.sh status codex "$PROJECT"
+   ```
+
+   `inbox.sh` に STATUS 付きメッセージが見つかったら通知を受け取ったのと同じ扱いにする。`delivery.sh status` で bridge が落ちていたら（`not running` に変わっていたら）fallback mode に切り替える
+3. 通知または `inbox.sh` で受け取った `STATUS:` 行（DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED）を読む。report file には実装内容の詳細（commit hashes、テスト結果、self-review メモ）が書かれているので、STATUS 受領後に report file を読んで内容を確認する
+4. STATUS は SDD の Handling Implementer Status に従って処理する。DONE → SDD どおり review-package → task reviewer subagent
+
+**fallback mode**（現行どおり）:
+
+1. report file の `STATUS:` を第一信号、`agent_status`（herdr の場合のみ）を補助信号として待つ。`WAIT_BUDGET` は打ち切り線:
 
    ```sh
    REPORT="/abs/path/to/task-N-report.md"   # 実際の絶対パスに置き換える
@@ -141,72 +158,55 @@ SDD の "Batch small same-shape work" が Codex 版では **バッチ = 1 pane**
    OUTCOME=timeout
    while :; do
      grep -q '^STATUS:' "$REPORT" 2>/dev/null && { OUTCOME=report; break; }
-     ST=$(herdr agent get "$PANE" 2>/dev/null | jq -r '.result.agent.agent_status')
-     case "$ST" in done|blocked) OUTCOME="state:$ST"; break;; esac
+     # herdr の場合のみ agent_status を補助信号にする。Orca の fallback では read(pane_id) の出力を都度確認する
      [ "$(date +%s)" -ge "$DEADLINE" ] && break
      sleep 5
    done
    echo "OUTCOME=$OUTCOME"
    ```
 
-   完了状態に `idle` を含めない。`idle` は初回 prompt を処理する前にも通る状態で、完了と区別できない。turn の完了は integration が `done` として報告する
-2. `OUTCOME=state:blocked` なら実行途中の承認要求。Failure Modes に従って解消し、ループに戻る
-3. `OUTCOME=report` なら STATUS 行（DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED）を読む。STATUS が「何が起きたか」の source of truth
-4. `OUTCOME=timeout` なら停止ではなくチェックポイントとして扱う（Failure Modes 参照）
-5. STATUS は SDD の Handling Implementer Status に従って処理する。DONE → SDD どおり review-package → task reviewer subagent
-
-**report file を第一信号にする理由**: `STATUS:` 行は dispatch prompt が Codex に「最後に書け」と指示している本 skill 自身の契約であり、herdr の state machine から独立している。`herdr agent wait` は使わない——`--until` の集合を間違えると無言で永久にブロックし、停止と正常な待機の区別が最も付きにくい形の失敗になる。
+2. `OUTCOME=report` なら STATUS 行を読む。`OUTCOME=timeout` なら停止ではなくチェックポイントとして扱う（Failure Modes 参照）
+3. STATUS は SDD の Handling Implementer Status に従って処理する
 
 ### `STATUS:` が信号として使えない場合の代替信号
 
-初回 dispatch は `STATUS:` で問題ないが、以下の場面では `STATUS:` を第一信号にすると誤検知する。実運用で頻出:
+push mode・fallback mode いずれでも、以下の場面では report file の `STATUS:` を素朴に信じると誤検知する:
 
-- **redispatch 直後**: 前ラウンドの `STATUS: BLOCKED` (等) が report 先頭に残っており、Codex が上書きする前にループが「report あり」で即抜ける。ゼロ秒完了 → 実際は未着手というパターン
-- **Codex が上書きし忘れる**: dispatch prompt に「上書きしろ」と書いてあっても、実際には append することがある。この場合 STATUS 行は「先頭のもの」しか読まれず、常に前ラウンドの結果として解釈される
+- **redispatch 直後**: 前ラウンドの `STATUS: BLOCKED` (等) が report 先頭に残っており、Codex が上書きする前に「report あり」で即抜ける
+- **Codex が上書きし忘れる**: dispatch/redispatch のメッセージに「上書きしろ」と書いてあっても、実際には append することがある
 
-このどちらかが疑わしい場面（= 全ての redispatch）では、**Codex の出力に依存しない信号**に切り替える。有力な選択肢:
+このどちらかが疑わしい場面（= 全ての redispatch）では、**Codex の出力に依存しない信号**に切り替える:
 
-- **commit 数** — バッチが期待する commit 数 (`N`) を事前に決めておき、`git rev-list --count $BASE..HEAD >= N` を第一信号にする。fix round の場合は `git rev-list --count $FIX_BASE..HEAD >= 1` (fix の追加コミット) で足りる
-- **round 見出しの新規追加** — dispatch prompt に「`## Fix round N` 見出しを report に追記しろ」と書き、`grep -q "^## Fix round $N" "$REPORT"` を第一信号にする（この場合は overwrite ではなく append を要求）
+- **commit 数** — バッチが期待する commit 数 (`N`) を事前に決めておき、`git rev-list --count $BASE..HEAD >= N` を確認する。fix round の場合は `git rev-list --count $FIX_BASE..HEAD >= 1` で足りる
+- **round 見出しの新規追加** — dispatch prompt に「`## Fix round N` 見出しを report に追記しろ」と書き、`grep -q "^## Fix round $N" "$REPORT"` を確認する（この場合は overwrite ではなく append を要求）
 
-どちらを使うかは round ごとに controller が選ぶ。commit 数ベースが最も堅牢（Codex の書き方に依存しない）。切り替えたときは `agent_status=blocked` の補助信号は残す（Codex が実行中モーダルで止まったら拾いたいため）。
+commit 数ベースが最も堅牢（Codex の書き方に依存しない）。push mode でも、STATUS 通知を受け取った後にこれらで裏取りしてよい。
 
 ## Redispatch
 
-NEEDS_CONTEXT・BLOCKED・レビュー指摘の fix は、生きた Codex に投げ返す（pane を閉じない）。完了条件: prompt 投入を確認し、Await が完了したこと。
+NEEDS_CONTEXT・BLOCKED・レビュー指摘の fix は、生きた Codex に投げ返す（pane を閉じない）。完了条件: 投入を確認し、Await が完了したこと。モードは Dispatch 節末尾で決まった push mode / fallback mode に従う。
 
 1. dispatch file の末尾に `## Redispatch N` 見出しで回答・追加 context・findings を追記する（記録用。fix の内容要件は SDD の fix dispatch に従う）
-2. 生きた Codex に投げる。既に起動済みなので argv は使えず、TUI への投入になる:
+2. **push mode**: agmsg で送るだけでよい。
 
    ```sh
-   herdr pane send-text "$PANE" "<回答/findings。詳細は task-N-dispatch.md の ## Redispatch N を見よ>"
+   ~/.agents/skills/agmsg/scripts/send.sh "$TEAM" claude codex "<回答/findings。詳細は task-N-dispatch.md の ## Redispatch N を見よ。完了したら report file を上書きして STATUS を送ること>"
+   ```
+
+   ビジー中の Codex に送っても実行中のターンを中断せず、完了後に次のターンとして安全にキューされることを実地確認済み。**送信するメッセージ本文に必ず「report file を上書きすること」を再度書く**——dispatch prompt にも同じ規約があるが、redispatch 経由で思い出させないと append されてしまい、次の Await が前ラウンドの STATUS で誤検知する
+
+3. **fallback mode**: 現行どおり multiplexer adapter の `send_text`/`send_keys` で TUI に投入する:
+
+   ```sh
+   # herdr の場合
+   herdr pane send-text "$PANE" "<回答/findings>"
    sleep 2
    herdr pane send-keys "$PANE" Enter
+   # Orca の場合は send_text と send_keys(Enter) を分離して2回送る（multiplexer-adapters.md 参照）
    ```
 
-   `herdr agent prompt` を使わない。`--wait --until working` を付けても、起動直後の一過性の `working` を拾って投入せずに成功を返すことがある（`--help` の "It does not track turns"）
-
-   **send-text に含める文言に必ず「report file を上書きすること」を再度書く。** dispatch prompt にも同じ規約があるが、redispatch 経由でその指示を Codex に思い出させないと append されてしまい、次の Await が前ラウンドの STATUS で誤検知する。毎回 1 行入れるコストで stale 誤検知を確実に潰せる
-3. **投入されたことを確認する。** 手順 2 は成否を返さないので、これが唯一の判定手段:
-
-   ```sh
-   tail -1 ~/.codex/history.jsonl
-   ```
-
-   Codex は受け取った prompt をここに追記する。行数が増え、末尾が今の prompt であることを確認する
-4. Await を実行する。ただし report file には前ラウンドの `STATUS:` が既にあり第一信号が誤検知する。「Await」節末尾の「`STATUS:` が信号として使えない場合の代替信号」を参照して、commit 数か round 見出しに切り替える。commit 数ベースの例:
-
-   ```sh
-   EXPECTED=<このラウンドで積むはずの累計 commit 数>
-   while :; do
-     N=$(cd "$PROJECT" && git rev-list --count "$BASE"..HEAD 2>/dev/null || echo 0)
-     [ "$N" -ge "$EXPECTED" ] && { OUTCOME=commits; break; }
-     ST=$(herdr agent get "$PANE" 2>/dev/null | jq -r '.result.agent.agent_status')
-     case "$ST" in blocked) OUTCOME="state:blocked"; break;; esac
-     [ "$(date +%s)" -ge "$DEADLINE" ] && break
-     sleep 5
-   done
-   ```
+   `herdr agent prompt` は使わない。`--wait --until working` を付けても、起動直後の一過性の `working` を拾って投入せずに成功を返すことがある（`--help` の "It does not track turns"）。**投入されたことを確認する**（`tail -1 ~/.codex/history.jsonl` の行数が増え、末尾が今の prompt であること）
+4. Await を実行する（次節）。fallback mode の場合、report file には前ラウンドの `STATUS:` が既にあり第一信号が誤検知するため、「Await」節末尾の「`STATUS:` が信号として使えない場合の代替信号」を参照して commit 数か round 見出しに切り替える
 
 生きた Codex に投げ返すことで作業中の文脈を保持する。バッチ境界を跨ぐとき（次バッチ）だけ pane を閉じて fresh に開き直す（「Batching Strategy」参照）。バッチ内の fix round では常に同じ pane を live で使う。
 
