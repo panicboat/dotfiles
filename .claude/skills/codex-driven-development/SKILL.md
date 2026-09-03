@@ -23,11 +23,11 @@ superpowers:subagent-driven-development（以下 SDD）の実行構造を維持�
 1. Skill tool で superpowers:subagent-driven-development を読み込む。以後、Substitutions 節に挙げた項目以外はすべて SDD の指示に従う（Pre-Flight Plan Review・レビュー・progress ledger・File Handoffs・Red Flags を含む）。SDD の scripts（task-brief / review-package）は SDD 読み込み時に表示される base directory から解決する
 2. `PROJECT` = 作業対象ディレクトリの絶対パスを確定する（多くの場合 worktree だが、単一ブランチでの作業等 worktree を使わないケースもあり、`PROJECT` はそのどちらでもよい）
 3. `TEAM` を `PROJECT` から導出する（例: `cdd-$(basename "$PROJECT")`。既存の `AGENT="impl-$(basename "$PROJECT")"` と同じ命名思想。`PROJECT` のパスから決定的に導出できればよい）
-4. 以下を idempotent に実行する（既に実行済みでも成功扱い）:
+4. 以下を idempotent に実行する（既に実行済みでも成功扱い）。`join.sh` には `AGMSG_RESOLVE_PROJECT=0` を付け、`$PROJECT` を渡した path そのままで登録させる（理由は Failure Modes 参照）:
 
    ```sh
-   ~/.agents/skills/agmsg/scripts/join.sh "$TEAM" claude claude-code "$PROJECT"
-   ~/.agents/skills/agmsg/scripts/join.sh "$TEAM" codex codex "$PROJECT"
+   AGMSG_RESOLVE_PROJECT=0 ~/.agents/skills/agmsg/scripts/join.sh "$TEAM" claude claude-code "$PROJECT"
+   AGMSG_RESOLVE_PROJECT=0 ~/.agents/skills/agmsg/scripts/join.sh "$TEAM" codex codex "$PROJECT"
    ~/.agents/skills/agmsg/scripts/delivery.sh set monitor codex "$PROJECT"
    ```
 
@@ -48,8 +48,8 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
 |---|---|
 | Task tool で implementer subagent を dispatch | Codex を multiplexer pane 上の agent として起動（Dispatch 節、`multiplexer-adapters.md`） |
 | implementer-prompt.md | 本 skill と同じディレクトリの codex-dispatch-prompt.md |
-| implementer の返値による報告 | report file の `STATUS:` 行 + `agent_status`（Await 節） |
-| 質問回答・追加 context・fix の再依頼 | 生きた Codex への `send-text` + `send-keys`（Redispatch 節） |
+| implementer の返値による報告 | push mode: agmsg 経由の通知 + report file の `STATUS:` 行。fallback mode: report file の `STATUS:` 行 + `agent_status`（詳細は Await 節） |
+| 質問回答・追加 context・fix の再依頼 | push mode: agmsg `send.sh` でメッセージ送信。fallback mode: 生きた Codex への `send-text` + `send-keys`（詳細は Redispatch 節） |
 | implementer への Model Selection | Codex は既定モデル |
 
 ## Batching Strategy
@@ -75,7 +75,7 @@ SDD の "Batch small same-shape work" が Codex 版では **バッチ = 1 pane**
 
 ## Dispatch
 
-タスクごとに実行する。完了条件: `agent start` が成功し、`agent_status` が `blocked` でないこと。
+タスクごとに実行する。完了条件: adapter の `create_pane`/`run` で pane が作られ boot prompt が投入されていること。加えて、本節末尾の bridge armed 確認で push mode に入るか、armed しなかった場合は fallback mode 側の boot prompt 受信確認まで完了していること（本節の該当ステップを参照）。
 
 **Dispatch 前チェック: plan の validation が実行に依存していないか。** plan/brief の Step に `bundle exec`, `pnpm run`, `bin/codegen`, `pytest`, `npm test`, `docker build`, `terraform plan` 等の**実行を伴う検証**がある場合、fresh worktree では対応する依存 (`bundle install`, `node_modules`, gem native extension, docker daemon, cloud creds) が高確率で未整備で、Codex は BLOCKED になる。dispatch 前に:
 
@@ -109,7 +109,7 @@ SDD の "Batch small same-shape work" が Codex 版では **バッチ = 1 pane**
    ~/.agents/skills/agmsg/scripts/delivery.sh status codex "$PROJECT"
    ```
 
-   - `Codex bridge: $TEAM/codex alive (pid ...)` が出たら → 以降このバッチは **push mode**（Redispatch/Await 節を参照）。bridge は Codex スレッドの初回 turn 完了後にのみ arm するため、これは旧版の `agent_status` idle→working/done 判定より強い証跡になっている（受理だけでなく処理完了まで確認済み）。boot prompt の受信確認を別途行う必要はない
+   - `Codex bridge: $TEAM/codex alive (pid ...)` が出たら → 以降このバッチは **push mode**（Redispatch/Await 節を参照）。**「armed」が証明するのは agmsg bridge プロセスが起動し接続済みであることだけ**——bridge が書く pidfile は app-server への接続や Codex スレッド確立より前に書かれるため（`codex-bridge.js` 実装で確認済み）、boot prompt が受理・処理されたことの証跡にはならない。push mode が動く前提条件（bridge が生きていること）が満たされたとみなせるだけで、boot prompt の受信確認を別途行うわけではない。dispatch が boot prompt を受け取れないまま沈黙するケースの実際の安全網は Await 節の `WAIT_BUDGET` タイムアウトであり、検知が早まるわけではないが最終的には検知される（影響は bounded）
    - タイムアウトしても出なければ、fallback mode に切り替える前に **boot prompt の受信確認**を行う（bridge が arm しない = 初回 turn 完了の証跡が無いため、fallback へ切り替える前に「そもそも prompt が届いたか」を別手段で確認する）。adapter ごとに手段が異なる:
      - **herdr**: `agent_status` が `idle` を抜けたかをポーリングする（`agent start` 直後は `idle` を通るため単発チェックでは判定できない）:
 
@@ -174,9 +174,18 @@ SDD の "Batch small same-shape work" が Codex 版では **バッチ = 1 pane**
      case "$ST" in done|blocked) OUTCOME="state:$ST"; break;; esac
      ```
 
-   - **Orca**: herdr の `agent_status` に相当する検証済みの状態フィールドが無い（`multiplexer-adapters.md` 参照）。代わりに `read(pane_id)`（`orca terminal read --terminal "$PANE" --json` → `result.terminal.tail`）の出力をループの都度確認し、承認待ちモーダルの文言が残っていないか見る。**これはベストエフォートのテキスト検査であり、herdr の `agent_status` のような証明された signal ではない**——テキストが残っていても実行中モーダルとは限らない点に注意する
+   - **Orca**: herdr の `agent_status` に相当する検証済みの状態フィールドが無い（`multiplexer-adapters.md` 参照）。代わりにループのコメント行を以下に差し替えて `read(pane_id)` の出力を補助信号にする:
 
-2. `OUTCOME=state:blocked`（herdr のみ）なら実行途中の承認要求。Failure Modes に従って解消し、ループに戻る
+     ```sh
+     TAIL=$(orca terminal read --terminal "$PANE" --json 2>/dev/null | jq -r '.result.terminal.tail')
+     case "$TAIL" in
+       *"Do you trust the contents of this directory?"*|*"Hooks need review"*) OUTCOME=state:blocked; break;;
+     esac
+     ```
+
+     **これはベストエフォートのテキスト検査であり、herdr の `agent_status` のような証明された signal ではない**——Dispatch 節で挙げた起動時ダイアログの文言（`Do you trust the contents of this directory?` / `Hooks need review`）が `tail` に残っている場合を承認待ちで stuck しているとみなして `OUTCOME=state:blocked` を設定しループを break する。文言が残っていなくても実行中でないことの証明にはならない点に注意する
+
+2. `OUTCOME=state:blocked` なら実行途中の承認要求。Failure Modes に従って解消し、ループに戻る
 3. `OUTCOME=report` なら STATUS 行（DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED）を読む
 4. `OUTCOME=timeout` なら停止ではなくチェックポイントとして扱う（Failure Modes 参照）
 5. STATUS は SDD の Handling Implementer Status に従って処理する
@@ -247,6 +256,7 @@ NEEDS_CONTEXT・BLOCKED・レビュー指摘の fix は、生きた Codex に投
 | 症状 | 原因 | 一手 |
 |---|---|---|
 | `agent_status` が `blocked` のまま | Codex がモーダルを表示して入力待ち | `herdr agent read "$PANE" --source visible --lines 40` で種類を判定。`Do you trust the contents of this directory?` はユーザー承認を得て `send-keys Enter`、`⚠ N hooks need review` は承認を得て `send-keys t` → `escape`。どちらも承認は永続。閉じれば argv の prompt が自動投入されるので投入し直さない |
+| Orca fallback mode の Await が `OUTCOME=state:blocked` のまま先に進まない | Codex がモーダル（directory trust / hooks review 等）を表示して入力待ち | `orca terminal read --terminal "$PANE" --json` → `result.terminal.tail` で種類を判定（`multiplexer-adapters.md` の `read` 参照）。trust 系（directory trust・hooks trust）はユーザー承認を得てから、`orca terminal send --terminal "$PANE" --text "<応答>"` と `orca terminal send --terminal "$PANE" --enter` を**別呼び出しに分けて**送る（同時指定は `agent_prompt_blocked` になる。`multiplexer-adapters.md` の `send_text`/`send_keys` 参照）。自動承認しない |
 | `agent read` が空文字列 | default の `--source recent` はモーダル表示中に空を返す | `--source visible` を付け直す。空を「画面が読めない」と解釈しない |
 | `agent start` が `agent_pane_busy` | split 直後の pane の shell がまだ idle 判定されていない | 数秒おいてリトライする（`multiplexer-adapters.md` の herdr `run` 行のリトライロジック参照） |
 | `agent start` が `agent_name_taken` | 同名 agent が herdr server 全体に既存 | 待っても解消しない。error message が保持側の `pane_id` と `cwd` を示すので、前 run の残骸なら閉じ、並行 run なら `AGENT` に suffix を足して 1 度だけやり直す |
@@ -254,7 +264,7 @@ NEEDS_CONTEXT・BLOCKED・レビュー指摘の fix は、生きた Codex に投
 | Redispatch 後の Await が即完了 | report file に前ラウンドの `STATUS:` が残っている | 第一信号を Codex 出力に依存しないものに切り替える（Await 節末尾「`STATUS:` が信号として使えない場合の代替信号」参照）。最堅牢は commit 数。round 見出しでも可 |
 | 想定 commit 数が積まれない | Codex が (a) 依存不足で BLOCKED、(b) plan の裁定待ち、(c) モーダル入力待ち | `git log`, `git status`, report file, `herdr agent read --source visible` で到達点を確認。install / package add で回避を Codex に指示しない（環境不備は controller の裁定事項）— plan の validation 手段そのものを差し替える |
 | herdr がエラーを返すのに jq が空を返す | herdr 停止 / protocol mismatch | ループは必ず上限で打ち切り、生出力をユーザーに見せる。`until` で無限に回さない |
-| `join.sh`/`whoami.sh` で登録した project が、渡した path と違う path で登録される（`delivery.sh status` がその path では "no identities registered" や `mode: off` を返す） | agmsg の `agmsg_resolve_project` が、git worktree の cwd を「既に登録済みの git-common メインリポジトリ」へ自動的に解決する（`join.sh`/`whoami.sh` はこの解決を経由するが `delivery.sh` は経由しない — path 解決の非対称性） | `whoami.sh "$PROJECT" codex`（または `claude-code`）の出力の `project=` フィールドで実際に登録された path を確認し、以降の `delivery.sh` 呼び出しはその path に対して行う。この非対称性は agmsg 側の既知の挙動であり、Setup/Dispatch の手順自体は変更不要（idempotent に再実行すれば正しい path で解決される） |
+| `join.sh`/`whoami.sh` で登録した project が、渡した path と違う path で登録される（`delivery.sh status` がその path では "no identities registered" や `mode: off` を返す） | agmsg の `agmsg_resolve_project` が、git worktree の cwd を「既に登録済みの git-common メインリポジトリ」へ自動的に解決する（`join.sh`/`whoami.sh` はこの解決を経由するが `delivery.sh` は経由しない — path 解決の非対称性）。この非対称性は再実行しても自然には解消しない — worktree path に対する `delivery.sh status` は恒久的に "no identities registered" を返し続ける（実地確認済み） | Setup 節の `join.sh` 呼び出しは `AGMSG_RESOLVE_PROJECT=0` を付けて実行し、`$PROJECT`（渡した raw path）そのままで登録を強制する。`delivery.sh` は元々 resolve を経由しないため、これで両者が同じ raw path 上で揃い、この skill の Setup が作る identity についてはこの非対称性が発生しなくなる。Setup の外で `join.sh`/`whoami.sh` を手動実行する場合はこの env var を付け忘れると再発するため、`whoami.sh "$PROJECT" codex`（または `claude-code`）の `project=` フィールドで実際に登録された path を確認する手順は依然有効 |
 | bridge が `WAIT_BUDGET` 内に arm しない | Codex CLI バージョン非互換、agmsg app-server 起動失敗等（BETA機能） | fallback mode に切り替えて続行する。ユーザーには push mode が使えなかった旨を報告する |
 | 同一 `PROJECT` で2つの生きた Codex pane が同時に存在する | agmsg の identity 衝突で bridge/thread が競合し、片方の bridge しか arm されない | 現行設計では 1 pane = 1 バッチが前提のため通常発生しない。並行バッチを将来サポートする場合は別途設計が必要 |
 | `.codex/hooks.json` が git 管理下に出現する | `delivery.sh set monitor` の副作用でプロジェクトの working tree に書き出される | `.git/info/exclude` に `/.codex/hooks.json` を追加する（Setup 実行時に未対応なら確認する） |
