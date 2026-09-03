@@ -23,7 +23,7 @@ Claude Code 自身が herdr pane の中で動いている（`herdr pane current`
 |---|---|
 | `detect()` | `command -v herdr` が成功し、かつ `herdr pane current` が成功する |
 | `create_pane(cwd)` | `herdr pane split --current --direction right --cwd "<cwd>" \| jq -r '.result.pane.pane_id'`（既存 SKILL.md の Dispatch 節が使っていたのと同じフィールドパス） |
-| `run(pane_id, argv)` | `herdr agent start <name> --kind codex --pane <pane_id> --timeout <ms> -- "<prompt>"`（pane 選択と codex 起動が一体。`<name>` はサーバー全体で一意にする必要があり、`impl-$(basename "$PROJECT")` のように `PROJECT` から導出する） |
+| `run(pane_id, argv)` | `herdr agent start <name> --kind codex --pane <pane_id> --timeout <ms> -- "<prompt>"`（pane 選択と codex 起動が一体。`<name>` はサーバー全体で一意にする必要があり、`impl-$(basename "$PROJECT")` のように `PROJECT` から導出する）。split 直後の pane は shell がまだ idle 判定されておらず `agent_pane_busy` を返すことがあるため、`agent_name_taken`（待っても解消しない）以外のエラーは最大10回・2秒間隔でリトライし、それでも解消しなければ失敗として報告する: `for i in $(seq 1 10); do OUT=$(herdr agent start <name> --kind codex --pane <pane_id> --timeout <ms> -- "<prompt>" 2>&1); printf '%s' "$OUT" \| grep -q '"error"' \|\| break; printf '%s' "$OUT" \| grep -q 'agent_name_taken' && break; sleep 2; done; printf '%s' "$OUT" \| grep -q '"error"' && { echo "START_FAILED"; printf '%s\n' "$OUT"; exit 1; }` |
 | `send_text(pane_id, text)` | `herdr pane send-text <pane_id> "<text>"` |
 | `send_keys(pane_id, keys)` | `herdr pane send-keys <pane_id> <keys>`（例: `Enter`） |
 | `read(pane_id)` | `herdr agent read <pane_id> --source visible --lines <N>` |

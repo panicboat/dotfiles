@@ -227,10 +227,20 @@ NEEDS_CONTEXT・BLOCKED・レビュー指摘の fix は、生きた Codex に投
 
 ## Teardown
 
-タスクの review が通ったら、または run を中断するときに実行する。完了条件: 対象 pane が閉じていること。
+2つの異なるライフサイクルに分かれる。pane の寿命と `TEAM`/identity の寿命は一致しない——`TEAM` は plan 実行全体で使い回すため、バッチごとに解体しない。
 
-1. `herdr pane close "$PANE"`（既に閉じている場合のエラーは想定内として続行）
-2. 全タスク完了後、`herdr pane list` で残っている implementer pane を確認し、あれば同様に `herdr pane close <PANE_ID>` で閉じる
+**Pane Teardown**（タスク/バッチの review が通ったら都度実行）
+1. adapter の `close_pane(pane_id)` で対象 pane を閉じる（既に閉じている場合のエラーは想定内として続行）
+2. `TEAM`/identity は解体しない。次のバッチも同じ `TEAM` に join したまま新しい pane を作る
+
+**Run Teardown**（plan 実行全体が完了した最後に1回、または run を中断するときに実行）
+1. 残っている implementer pane がないか確認し、あれば同様に `close_pane` で閉じる
+2. 以下で agmsg の identity を解除する:
+
+   ```sh
+   ~/.agents/skills/agmsg/scripts/reset.sh "$PROJECT" codex codex
+   ~/.agents/skills/agmsg/scripts/reset.sh "$PROJECT" claude-code claude
+   ```
 
 ## Failure Modes
 
@@ -238,19 +248,24 @@ NEEDS_CONTEXT・BLOCKED・レビュー指摘の fix は、生きた Codex に投
 |---|---|---|
 | `agent_status` が `blocked` のまま | Codex がモーダルを表示して入力待ち | `herdr agent read "$PANE" --source visible --lines 40` で種類を判定。`Do you trust the contents of this directory?` はユーザー承認を得て `send-keys Enter`、`⚠ N hooks need review` は承認を得て `send-keys t` → `escape`。どちらも承認は永続。閉じれば argv の prompt が自動投入されるので投入し直さない |
 | `agent read` が空文字列 | default の `--source recent` はモーダル表示中に空を返す | `--source visible` を付け直す。空を「画面が読めない」と解釈しない |
-| `agent start` が `agent_pane_busy` | split 直後の pane の shell がまだ idle 判定されていない | 数秒おいてリトライ（Dispatch 手順 4 のループ） |
+| `agent start` が `agent_pane_busy` | split 直後の pane の shell がまだ idle 判定されていない | 数秒おいてリトライする（`multiplexer-adapters.md` の herdr `run` 行のリトライロジック参照） |
 | `agent start` が `agent_name_taken` | 同名 agent が herdr server 全体に既存 | 待っても解消しない。error message が保持側の `pane_id` と `cwd` を示すので、前 run の残骸なら閉じ、並行 run なら `AGENT` に suffix を足して 1 度だけやり直す |
 | Await が `WAIT_BUDGET` 超過 | 停止とは限らない | `git log` / `git status` / report file で実際の到達点を確かめ、ユーザーに報告して指示を待つ。**pane を作り直さない**——作業は完了・commit 済みのことがある |
 | Redispatch 後の Await が即完了 | report file に前ラウンドの `STATUS:` が残っている | 第一信号を Codex 出力に依存しないものに切り替える（Await 節末尾「`STATUS:` が信号として使えない場合の代替信号」参照）。最堅牢は commit 数。round 見出しでも可 |
 | 想定 commit 数が積まれない | Codex が (a) 依存不足で BLOCKED、(b) plan の裁定待ち、(c) モーダル入力待ち | `git log`, `git status`, report file, `herdr agent read --source visible` で到達点を確認。install / package add で回避を Codex に指示しない（環境不備は controller の裁定事項）— plan の validation 手段そのものを差し替える |
 | herdr がエラーを返すのに jq が空を返す | herdr 停止 / protocol mismatch | ループは必ず上限で打ち切り、生出力をユーザーに見せる。`until` で無限に回さない |
+| `join.sh`/`whoami.sh` で登録した project が、渡した path と違う path で登録される（`delivery.sh status` がその path では "no identities registered" や `mode: off` を返す） | agmsg の `agmsg_resolve_project` が、git worktree の cwd を「既に登録済みの git-common メインリポジトリ」へ自動的に解決する（`join.sh`/`whoami.sh` はこの解決を経由するが `delivery.sh` は経由しない — path 解決の非対称性） | `whoami.sh "$PROJECT" codex`（または `claude-code`）の出力の `project=` フィールドで実際に登録された path を確認し、以降の `delivery.sh` 呼び出しはその path に対して行う。この非対称性は agmsg 側の既知の挙動であり、Setup/Dispatch の手順自体は変更不要（idempotent に再実行すれば正しい path で解決される） |
+| bridge が `WAIT_BUDGET` 内に arm しない | Codex CLI バージョン非互換、agmsg app-server 起動失敗等（BETA機能） | fallback mode に切り替えて続行する。ユーザーには push mode が使えなかった旨を報告する |
+| 同一 `PROJECT` で2つの生きた Codex pane が同時に存在する | agmsg の identity 衝突で bridge/thread が競合し、片方の bridge しか arm されない | 現行設計では 1 pane = 1 バッチが前提のため通常発生しない。並行バッチを将来サポートする場合は別途設計が必要 |
+| `.codex/hooks.json` が git 管理下に出現する | `delivery.sh set monitor` の副作用でプロジェクトの working tree に書き出される | `.git/info/exclude` に `/.codex/hooks.json` を追加する（Setup 実行時に未対応なら確認する） |
+| Orca で `send_text`+`send_keys` を同時送信すると `agent_prompt_blocked` になる | Orca 側のエージェント自動化ガード（詳細な発火条件は未解明） | text と enter を分離して2回に分けて送る（`multiplexer-adapters.md` 参照） |
 
 ## Red Flags
 
 SDD の Red Flags に加えて、以下をしてはならない。
 
-- herdr session 外で実行する（pane split の元 pane が無い）
-- codex integration 未導入で実行する（`agent_status` が更新されず Await の補助信号が死ぬ）
+- 使える multiplexer が無い状態で実行する（pane を作る元 pane が無い）
+- agmsg 未導入で実行する（push mode が使えず、常に fallback mode に落ちる）
 - `herdr agent start` の出力を捨てる（起動失敗に気づけない）
 - 完了検知を `agent_status` だけに頼る（初回 dispatch は `STATUS:`、redispatch は commit 数か round 見出し。Await 節参照）
 - 打ち切り線の無い待機に入る（ハングと正常な待機が区別できず、復旧手順が発火しない）
