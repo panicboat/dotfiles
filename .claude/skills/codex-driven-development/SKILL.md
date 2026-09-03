@@ -1,26 +1,44 @@
 ---
 name: codex-driven-development
-description: 実装 plan を実行するとき、implementer を herdr pane 上の Codex に委譲してトークン使用量を分散する。superpowers:subagent-driven-development の実行構造（タスクごとの実装 → タスクレビュー → 最終レビュー）は維持し、implementer 周りだけを置き換える。動作条件は herdr session 内で実行していること・codex integration が導入済みであることで、満たさなければ何も起動せず SDD での実行を提案する。plan の実行方式として codex-driven-development が選択されたときに使用する。
+description: 実装 plan を実行するとき、implementer を multiplexer pane 上の Codex に委譲してトークン使用量を分散する。superpowers:subagent-driven-development の実行構造（タスクごとの実装 → タスクレビュー → 最終レビュー）は維持し、implementer 周りだけを置き換える。動作条件は対応する multiplexer（herdr/Orca）のセッション内で実行していること・agmsg がインストールされていることで、満たさなければ何も起動せず SDD での実行を提案する。plan の実行方式として codex-driven-development が選択されたときに使用する。
 ---
 
 # Codex-Driven Development
 
-superpowers:subagent-driven-development（以下 SDD）の実行構造を維持したまま、implementer だけを herdr pane 上の Codex に置き換えて plan を実行する。実装（最もトークンを消費する工程）を Codex に移し、Claude には意図の判断——plan 管理・task brief 作成・レビュー裁定——を残す。
+superpowers:subagent-driven-development（以下 SDD）の実行構造を維持したまま、implementer だけを multiplexer pane 上の Codex に置き換えて plan を実行する。実装（最もトークンを消費する工程）を Codex に移し、Claude には意図の判断——plan 管理・task brief 作成・レビュー裁定——を残す。pane の生成・破棄には `multiplexer-adapters.md` に定義された adapter 契約を使う。生きた Codex への追加指示（Redispatch）と完了検知（Await）は agmsg の Codex monitor bridge を使い、bridge が使えない場合のみ multiplexer 固有の TUI 操作にフォールバックする。
 
 ## Prerequisites
 
 開始前に以下を確認する。ひとつでも欠けていれば、欠けている項目を報告して SDD での実行を提案する。
 
-1. `command -v herdr` が成功する
-2. herdr session 内である（`herdr pane current` が成功する）。session 外なら herdr を起動してその中で claude を動かすようユーザーに促す。`protocol_mismatch` なら server 再起動が要り、エラーメッセージが socket path 付きの `herdr server stop` を示すのでユーザーに提示する。**server 再起動は既存 pane のプロセスを落とす**ため、勝手に実行しない
-3. codex integration が入っている（`herdr integration status | grep '^codex:'` の行が `not installed` でない。語彙は `current (vN)` / `not installed` で、`installed` という文字列は出力されない）。未導入なら `herdr integration install codex` を促す。これが無いと `agent_status` が更新されず Await の補助信号が死ぬ
+1. 使える multiplexer が最低1つある。`multiplexer-adapters.md` の `detect()` 手順を herdr → Orca の順に試す。**両方使えると判定された場合**は、現在の Claude Code セッション自身が動いている pane を提供している方を選ぶ（作業中の環境と同じツールで pane を割る方が自然で、確認コストも要らない）。判定できなければユーザーに選ばせる
+2. agmsg がインストールされている（`~/.agents/skills/agmsg` が存在する）。無ければ agmsg のインストールをユーザーに促し、SDD での実行を提案する
+3. Codex CLI があり、`~/.agents/skills/agmsg/scripts/drivers/types/codex/codex-shim.sh` が存在する（`codex` コマンドが shim 経由で起動する実配線は非対話スクリプトから確証できないため、ここでは弱いシグナルとして扱う。実際に機能しているかは Dispatch 節の bridge armed 確認で確定させる）
+4. herdr を選んだ場合のみ: herdr session 内である（`herdr pane current` が成功する）。session 外なら herdr を起動してその中で claude を動かすようユーザーに促す。`protocol_mismatch` なら server 再起動が要り、エラーメッセージが socket path 付きの `herdr server stop` を示すのでユーザーに提示する。**server 再起動は既存 pane のプロセスを落とす**ため、勝手に実行しない
 
 ## Setup
 
-完了条件: PROJECT が確定していること。
+完了条件: `PROJECT`・`TEAM`・agmsg の両 identity が確定していること。
 
 1. Skill tool で superpowers:subagent-driven-development を読み込む。以後、Substitutions 節に挙げた項目以外はすべて SDD の指示に従う（Pre-Flight Plan Review・レビュー・progress ledger・File Handoffs・Red Flags を含む）。SDD の scripts（task-brief / review-package）は SDD 読み込み時に表示される base directory から解決する
-2. `PROJECT` = 作業 worktree の絶対パスを確定する
+2. `PROJECT` = 作業対象ディレクトリの絶対パスを確定する（多くの場合 worktree だが、単一ブランチでの作業等 worktree を使わないケースもあり、`PROJECT` はそのどちらでもよい）
+3. `TEAM` を `PROJECT` から導出する（例: `cdd-$(basename "$PROJECT")`。既存の `AGENT="impl-$(basename "$PROJECT")"` と同じ命名思想。`PROJECT` のパスから決定的に導出できればよい）
+4. 以下を idempotent に実行する（既に実行済みでも成功扱い）:
+
+   ```sh
+   ~/.agents/skills/agmsg/scripts/join.sh "$TEAM" claude claude-code "$PROJECT"
+   ~/.agents/skills/agmsg/scripts/join.sh "$TEAM" codex codex "$PROJECT"
+   ~/.agents/skills/agmsg/scripts/delivery.sh set monitor codex "$PROJECT"
+   ```
+
+5. Claude 自身の delivery mode を確認し、`monitor` でなければ Monitor tool を起動する:
+
+   ```sh
+   ~/.agents/skills/agmsg/scripts/delivery.sh status claude-code "$PROJECT"
+   ```
+
+   `mode: monitor` でなければ `~/.agents/skills/agmsg/scripts/delivery.sh set monitor claude-code "$PROJECT"` を実行し、出力される `AGMSG-DIRECTIVE` の指示に従って Monitor tool を起動する
+6. `TEAM` は plan 実行全体を通して使い回す（後述 Run Teardown まで解体しない）。同一 `PROJECT` に対する再実行は既存 team に join するだけで、新規 team は作らない
 
 ## Substitutions
 
@@ -28,7 +46,7 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
 
 | SDD | 本 skill |
 |---|---|
-| Task tool で implementer subagent を dispatch | Codex を herdr agent として起動（Dispatch 節） |
+| Task tool で implementer subagent を dispatch | Codex を multiplexer pane 上の agent として起動（Dispatch 節、`multiplexer-adapters.md`） |
 | implementer-prompt.md | 本 skill と同じディレクトリの codex-dispatch-prompt.md |
 | implementer の返値による報告 | report file の `STATUS:` 行 + `agent_status`（Await 節） |
 | 質問回答・追加 context・fix の再依頼 | 生きた Codex への `send-text` + `send-keys`（Redispatch 節） |
