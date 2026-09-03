@@ -149,7 +149,7 @@ SDD の "Batch small same-shape work" が Codex 版では **バッチ = 1 pane**
 
 **fallback mode**（現行どおり）:
 
-1. report file の `STATUS:` を第一信号、`agent_status`（herdr の場合のみ）を補助信号として待つ。`WAIT_BUDGET` は打ち切り線:
+1. report file の `STATUS:` を第一信号として待つ。補助信号は adapter によって異なる（下記参照）。`WAIT_BUDGET` は打ち切り線:
 
    ```sh
    REPORT="/abs/path/to/task-N-report.md"   # 実際の絶対パスに置き換える
@@ -158,15 +158,30 @@ SDD の "Batch small same-shape work" が Codex 版では **バッチ = 1 pane**
    OUTCOME=timeout
    while :; do
      grep -q '^STATUS:' "$REPORT" 2>/dev/null && { OUTCOME=report; break; }
-     # herdr の場合のみ agent_status を補助信号にする。Orca の fallback では read(pane_id) の出力を都度確認する
+     # <adapter ごとの補助信号チェック。下記 herdr/Orca 参照>
      [ "$(date +%s)" -ge "$DEADLINE" ] && break
      sleep 5
    done
    echo "OUTCOME=$OUTCOME"
    ```
 
-2. `OUTCOME=report` なら STATUS 行を読む。`OUTCOME=timeout` なら停止ではなくチェックポイントとして扱う（Failure Modes 参照）
-3. STATUS は SDD の Handling Implementer Status に従って処理する
+   完了状態に `idle` を含めない。`idle` は初回 prompt を処理する前にも通る状態で、完了と区別できない。turn の完了は integration が `done` として報告する
+
+   - **herdr**: ループのコメント行を以下に差し替えて `agent_status` を補助信号にする:
+
+     ```sh
+     ST=$(herdr agent get "$PANE" 2>/dev/null | jq -r '.result.agent.agent_status')
+     case "$ST" in done|blocked) OUTCOME="state:$ST"; break;; esac
+     ```
+
+   - **Orca**: herdr の `agent_status` に相当する検証済みの状態フィールドが無い（`multiplexer-adapters.md` 参照）。代わりに `read(pane_id)`（`orca terminal read --terminal "$PANE" --json` → `result.terminal.tail`）の出力をループの都度確認し、承認待ちモーダルの文言が残っていないか見る。**これはベストエフォートのテキスト検査であり、herdr の `agent_status` のような証明された signal ではない**——テキストが残っていても実行中モーダルとは限らない点に注意する
+
+2. `OUTCOME=state:blocked`（herdr のみ）なら実行途中の承認要求。Failure Modes に従って解消し、ループに戻る
+3. `OUTCOME=report` なら STATUS 行（DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED）を読む
+4. `OUTCOME=timeout` なら停止ではなくチェックポイントとして扱う（Failure Modes 参照）
+5. STATUS は SDD の Handling Implementer Status に従って処理する
+
+**report file を第一信号にする理由**: `STATUS:` 行は dispatch prompt が Codex に「最後に書け」と指示している本 skill 自身の契約であり、herdr の state machine から独立している。`herdr agent wait` は使わない——`--until` の集合を間違えると無言で永久にブロックし、停止と正常な待機の区別が最も付きにくい形の失敗になる（打ち切り線の無い待機は Red Flags でも禁止）。
 
 ### `STATUS:` が信号として使えない場合の代替信号
 
