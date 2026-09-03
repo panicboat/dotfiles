@@ -31,17 +31,17 @@ Claude Code 自身が herdr pane の中で動いている（`herdr pane current`
 
 ## Orca
 
-Claude Code 自身が Orca 管理下の pane で動いていることが前提。Orca には herdr の `pane current` に相当する「自分がどの pane か」を直接返すコマンドが無いため、`orca terminal list --json` を実行し、`worktreePath` が現在の作業ディレクトリと一致し `agentIdentity` が `claude` である要素の `handle` を自分の pane として扱う。
+Claude Code 自身が Orca 管理下の pane で動いていることが前提。Orca には herdr の `pane current` に相当する「自分がどの pane か」を直接返すコマンドが無いため、`orca terminal list --json` を実行し、`worktreePath` が現在の作業ディレクトリと一致し `agentIdentity` が `claude` である要素の `handle` を自分の pane として扱う。**既知の未解決 gap**: cwd が git worktree のサブディレクトリの場合、この方法は 0 件しかマッチしない（実地確認済み）。Orca は `worktreePath` として git worktree のパスではなくメインリポジトリのパスを返すため。codex-driven-development は worktree 上での実行を通常運用とするため、この検出方法は現状そのままでは使えない。
 
 | 契約操作 | コマンド |
 |---|---|
 | `detect()` | `command -v orca` が成功し、`orca status --json` の `result.runtime.reachable` が `true` |
-| `create_pane(cwd)` | 自分の pane の handle が分かれば `orca terminal split --terminal <own_handle> --direction horizontal --cwd "<cwd>"` → `result.split.handle`。分からなければ `orca terminal create --worktree "path:<cwd>"` → `result.handle` |
+| `create_pane(cwd)` | 自分の pane の handle が分かれば `orca terminal split --terminal <own_handle> --direction horizontal --cwd "<cwd>"` → `result.split.handle`。分からなければ `orca terminal create --worktree "path:<cwd>"` → `result.terminal.handle`（**`result.handle` ではない**）。**`split` の `ok:false`/timeout エラーは信頼できない場合がある** — エラー応答を返した呼び出しがバックエンドでは非同期に成功し、pane が実際には作られていたケースを実地確認済み。エラー時は即 retry せず `orca terminal list` で実際に作成されていないか確認してから判断すること（さもないと pane の重複作成や、作られた pane の孤児化につながる） |
 | `run(pane_id, argv)` | pane 作成時に `--command "codex \"<prompt>\""` を渡して同時に起動する（`create_pane` 呼び出しと同時に行う） |
 | `send_text(pane_id, text)` | `orca terminal send --terminal <pane_id> --text "<text>"`（**`--enter` と同時指定しない** — 同時指定は `agent_prompt_blocked` で拒否されるケースを実地確認済み） |
 | `send_keys(pane_id, "Enter")` | `orca terminal send --terminal <pane_id> --enter`（`send_text` とは別呼び出しにする） |
 | `read(pane_id)` | `orca terminal read --terminal <pane_id> --json` → `result.terminal.tail`（ANSI 制御文字混じりの生テキストが返るため、パース時は考慮する） |
-| `close_pane(pane_id)` | `orca terminal close --terminal <pane_id>` |
+| `close_pane(pane_id)` | `orca terminal close --terminal <pane_id>`。**既知の未解決 gap**: `orca terminal create` で作成した pane が `orca terminal list` に一度も現れず、その handle で `close_pane` を呼ぶと `tab_not_found` で失敗するケースを実地確認済み。原因未特定 |
 
 ## bridge armed 確認（multiplexer 非依存）
 
