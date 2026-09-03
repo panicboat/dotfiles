@@ -41,7 +41,7 @@ skill が生成する spec / plan を commit するかを作業開始時に一�
 実装 plan の実行を開始する前に、実行方式を以下から選択するようユーザーに確認する
 **skill 側の既定の提案より優先する**
 
-1. codex-driven-development（実装を Codex に委譲してトークン使用量を分散。herdr session 内であることが前提）
+1. codex-driven-development（実装を Codex に委譲してトークン使用量を分散。対応する multiplexer（herdr/Orca）のセッション内であることが前提）
 2. subagent-driven-development（Claude subagent で実行）
 3. executing-plans（このセッションでインライン実行）
 
