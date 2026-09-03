@@ -86,44 +86,47 @@ SDD の "Batch small same-shape work" が Codex 版では **バッチ = 1 pane**
 これを飛ばすと Codex が BLOCKED を上げ、redispatch で controller が結局差し替えを裁定することになる（実運用でほぼ毎回発生）。事前に潰す方が早い。
 
 1. BASE commit を記録し、SDD の task-brief script で brief file を生成する
-2. codex-dispatch-prompt.md の `{{...}}` をすべて埋め、brief と同じディレクトリの `task-N-dispatch.md` に書く
-3. Codex 用の pane を作る（controller の pane を分割、cwd を worktree に）。**`PANE` が取れたことを確認してから進む**——取れないまま進むと以降の全コマンドが空文字列を target にして無関係なエラーを出す:
+2. codex-dispatch-prompt.md の `{{...}}`（`{{TEAM}}` を含む。Task 6 でテンプレート自体を multiplexer 名を含まない汎用の文言に更新済み）をすべて埋め、brief と同じディレクトリの `task-N-dispatch.md` に書く
+3. `multiplexer-adapters.md` の選ばれた adapter の `create_pane(cwd=$PROJECT)` を実行する。**`PANE` が取れたことを確認してから進む**——取れないまま進むと以降の全コマンドが空文字列を target にして無関係なエラーを出す:
 
    ```sh
-   PANE=$(herdr pane split --current --direction right --cwd "$PROJECT" | jq -r '.result.pane.pane_id')
-   case "$PANE" in ""|null) echo "SPLIT_FAILED"; exit 1;; esac
+   PANE="$(<adapter の create_pane コマンドの出力から pane id / handle を抽出>)"
+   case "$PANE" in ""|null) echo "CREATE_PANE_FAILED"; exit 1;; esac
    ```
 
-4. **dispatch prompt を argv に載せて** Codex を起動する。agent 名は herdr server 全体で一意でなければならないため worktree 名から導出する:
+4. adapter の `run(pane_id, argv)` で **dispatch prompt を argv に載せて** Codex を起動する。agent 名/pane 名はサーバー全体で一意でなければならないため worktree 名から導出する（herdr の場合。Orca は pane 単位で衝突しないため不要）:
 
    ```sh
    AGENT="impl-$(basename "$PROJECT")"
    BOOT="Read $PROJECT/path/to/task-N-dispatch.md and follow it exactly."   # 絶対パスに置き換える
-   for i in $(seq 1 10); do
-     OUT=$(herdr agent start "$AGENT" --kind codex --pane "$PANE" --timeout 120000 -- "$BOOT" 2>&1)
-     printf '%s' "$OUT" | grep -q '"error"' || break
-     printf '%s' "$OUT" | grep -q 'agent_name_taken' && break   # 待っても解消しない
-     sleep 2
-   done
-   printf '%s' "$OUT" | grep -q '"error"' && { echo "START_FAILED"; printf '%s\n' "$OUT"; exit 1; }
    ```
 
-   `--` 以降は codex の positional PROMPT にそのまま渡る（`codex [OPTIONS] [PROMPT]`）。**prompt が起動時に確定するので TUI への投入競合が無い**。起動直後にモーダルが出ても prompt はキューされ、モーダルを閉じた時点で自動投入される。リトライは `agent_pane_busy`（split 直後の shell がまだ idle 判定されていない）向けで、`agent_name_taken` は待っても解消しないので即座に抜けて `AGENT` に suffix を足して 1 度だけやり直す。それ以外でリトライが枯渇したらユーザーに報告して指示を待つ
-
-5. prompt が処理に入ったことを確認する。`agent start` 直後は `idle`（まだ処理を始めていない）を通るため**単発チェックでは判定できない**。遷移するまでポーリングする:
+   `multiplexer-adapters.md` の `run` の行に従って `codex "$BOOT"` を起動する。**prompt が起動時に確定するので TUI への投入競合が無い**。起動直後にモーダルが出ても prompt はキューされ、モーダルを閉じた時点で自動投入される
+5. 起動直後の一度きりの対話ダイアログ（`Do you trust the contents of this directory?` / `Hooks need review` / update 確認）が出たら、adapter の `read(pane_id)` で内容を判定し、`send_text`/`send_keys` で応答する。**trust 系（directory trust・hooks trust）はユーザー承認を得てから**応答する。自動承認しない
+6. **bridge armed 確認**: 起動から一定時間（30秒を目安）、以下を数秒おきにポーリングする:
 
    ```sh
-   for i in $(seq 1 20); do
-     ST=$(herdr agent get "$PANE" | jq -r '.result.agent.agent_status')
-     case "$ST" in working|done|blocked) break;; esac
-     sleep 3
-   done
-   echo "status=$ST"
+   ~/.agents/skills/agmsg/scripts/delivery.sh status codex "$PROJECT"
    ```
 
-   - `working` / `done` — prompt は届いている。Await へ進む
-   - `blocked` — モーダルで入力待ち。Failure Modes の該当行で解消する
-   - `idle` のまま枯渇 — `tail -1 ~/.codex/history.jsonl` の末尾が今の boot prompt かを見る。一致すれば届いており Codex が遅いだけ、不一致なら届いていない
+   - `Codex bridge: $TEAM/codex alive (pid ...)` が出たら → 以降このバッチは **push mode**（Redispatch/Await 節を参照）。bridge は Codex スレッドの初回 turn 完了後にのみ arm するため、これは旧版の `agent_status` idle→working/done 判定より強い証跡になっている（受理だけでなく処理完了まで確認済み）。boot prompt の受信確認を別途行う必要はない
+   - タイムアウトしても出なければ、fallback mode に切り替える前に **boot prompt の受信確認**を行う（bridge が arm しない = 初回 turn 完了の証跡が無いため、fallback へ切り替える前に「そもそも prompt が届いたか」を別手段で確認する）。adapter ごとに手段が異なる:
+     - **herdr**: `agent_status` が `idle` を抜けたかをポーリングする（`agent start` 直後は `idle` を通るため単発チェックでは判定できない）:
+
+       ```sh
+       for i in $(seq 1 20); do
+         ST=$(herdr agent get "$PANE" | jq -r '.result.agent.agent_status')
+         case "$ST" in working|done|blocked) break;; esac
+         sleep 3
+       done
+       echo "status=$ST"
+       ```
+
+       - `working` / `done` — 受信確認できた
+       - `blocked` — モーダルで入力待ち。Failure Modes の該当行で解消してから受信確認できたものとして扱う
+       - `idle` のまま枯渇 — `tail -1 ~/.codex/history.jsonl` の末尾が今の boot prompt かを見る。一致すれば届いており Codex が遅いだけで受信確認できたとみなす。不一致なら届いていない
+     - **Orca**: herdr の `agent_status` に相当する検証済みの状態フィールドが無い（`multiplexer-adapters.md` 参照）。代わりに `read(pane_id)`（`orca terminal read --terminal "$PANE" --json` → `result.terminal.tail`）で boot prompt のテキストが composer / 入力欄に未送信のまま残っていないかを確認する。**これはベストエフォートのテキスト検査であり、herdr の `agent_status` のような証明された signal ではない**——テキストが消えていても Codex 側が処理を始めたことの確証にはならない点に注意する。テキストが残っていなければ受信確認できたとみなす
+   - 受信確認できたら、以降このバッチは **fallback mode**（TUI 注入 + adapter の `read`/herdr の `agent_status` ポーリングに切り替える）。ユーザーには push mode が使えなかった旨を報告する。受信確認も取れない場合は Dispatch 自体が失敗している可能性があるため、先に進まずユーザーに報告する
 
 ## Await
 
