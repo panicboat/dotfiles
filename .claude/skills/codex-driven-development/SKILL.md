@@ -94,10 +94,9 @@ SDD の "Batch small same-shape work" が Codex 版では **バッチ = 1 pane**
    case "$PANE" in ""|null) echo "CREATE_PANE_FAILED"; exit 1;; esac
    ```
 
-4. adapter の `run(pane_id, argv)` で **dispatch prompt を argv に載せて** Codex を起動する。agent 名/pane 名はサーバー全体で一意でなければならないため worktree 名から導出する（herdr の場合。Orca は pane 単位で衝突しないため不要）:
+4. adapter の `run(pane_id, argv)` で **dispatch prompt を argv に載せて** Codex を起動する。名前の一意性要件など adapter 固有の詳細は `multiplexer-adapters.md` の `run` 行に従う:
 
    ```sh
-   AGENT="impl-$(basename "$PROJECT")"
    BOOT="Read $PROJECT/path/to/task-N-dispatch.md and follow it exactly."   # 絶対パスに置き換える
    ```
 
@@ -110,23 +109,9 @@ SDD の "Batch small same-shape work" が Codex 版では **バッチ = 1 pane**
    ```
 
    - `Codex bridge: $TEAM/codex alive (pid ...)` が出たら → 以降このバッチは **push mode**（Redispatch/Await 節を参照）。**「armed」が証明するのは agmsg bridge プロセスが起動し接続済みであることだけ**——bridge が書く pidfile は app-server への接続や Codex スレッド確立より前に書かれるため（`codex-bridge.js` 実装で確認済み）、boot prompt が受理・処理されたことの証跡にはならない。push mode が動く前提条件（bridge が生きていること）が満たされたとみなせるだけで、boot prompt の受信確認を別途行うわけではない。dispatch が boot prompt を受け取れないまま沈黙するケースの実際の安全網は Await 節の `WAIT_BUDGET` タイムアウトであり、検知が早まるわけではないが最終的には検知される（影響は bounded）
-   - タイムアウトしても出なければ、fallback mode に切り替える前に **boot prompt の受信確認**を行う（bridge が arm しない = 初回 turn 完了の証跡が無いため、fallback へ切り替える前に「そもそも prompt が届いたか」を別手段で確認する）。adapter ごとに手段が異なる:
-     - **herdr**: `agent_status` が `idle` を抜けたかをポーリングする（`agent start` 直後は `idle` を通るため単発チェックでは判定できない）:
-
-       ```sh
-       for i in $(seq 1 20); do
-         ST=$(herdr agent get "$PANE" | jq -r '.result.agent.agent_status')
-         case "$ST" in working|done|blocked) break;; esac
-         sleep 3
-       done
-       echo "status=$ST"
-       ```
-
-       - `working` / `done` — 受信確認できた
-       - `blocked` — モーダルで入力待ち。Failure Modes の該当行で解消してから受信確認できたものとして扱う
-       - `idle` のまま枯渇 — `tail -1 ~/.codex/history.jsonl` の末尾が今の boot prompt かを見る。一致すれば届いており Codex が遅いだけで受信確認できたとみなす。不一致なら届いていない
-     - **Orca**: herdr の `agent_status` に相当する検証済みの状態フィールドが無い（`multiplexer-adapters.md` 参照）。代わりに `read(pane_id)`（`orca terminal read --terminal "$PANE" --json` → `result.terminal.tail`）で boot prompt のテキストが composer / 入力欄に未送信のまま残っていないかを確認する。**これはベストエフォートのテキスト検査であり、herdr の `agent_status` のような証明された signal ではない**——テキストが消えていても Codex 側が処理を始めたことの確証にはならない点に注意する。テキストが残っていなければ受信確認できたとみなす
-   - 受信確認できたら、以降このバッチは **fallback mode**（TUI 注入 + adapter の `read`/herdr の `agent_status` ポーリングに切り替える）。ユーザーには push mode が使えなかった旨を報告する。受信確認も取れない場合は Dispatch 自体が失敗している可能性があるため、先に進まずユーザーに報告する
+   - タイムアウトしても出なければ、fallback mode に切り替える前に adapter の `receipt_check(pane_id)` で **boot prompt の受信確認**を行う（bridge が arm しなかった以上、bridge 経由の signal は得られないため、別手段で確認する）。具体的な判定方法（herdr/Orca それぞれの検証済み度合いを含む）は `multiplexer-adapters.md` の `receipt_check` 行を参照
+     - `received` → 以降このバッチは **fallback mode**（TUI 注入 + adapter の `poll_state` ポーリングに切り替える）。ユーザーには push mode が使えなかった旨を報告する
+     - `not_received` → Dispatch 自体が失敗している可能性があるため、先に進まずユーザーに報告する
 
 ## Await
 
@@ -149,7 +134,7 @@ SDD の "Batch small same-shape work" が Codex 版では **バッチ = 1 pane**
 
 **fallback mode**（現行どおり）:
 
-1. report file の `STATUS:` を第一信号として待つ。補助信号は adapter によって異なる（下記参照）。`WAIT_BUDGET` は打ち切り線:
+1. report file の `STATUS:` を第一信号として待つ。補助信号は adapter の `poll_state(pane_id)` を使う。`WAIT_BUDGET` は打ち切り線:
 
    ```sh
    REPORT="/abs/path/to/task-N-report.md"   # 実際の絶対パスに置き換える
@@ -158,36 +143,19 @@ SDD の "Batch small same-shape work" が Codex 版では **バッチ = 1 pane**
    OUTCOME=timeout
    while :; do
      grep -q '^STATUS:' "$REPORT" 2>/dev/null && { OUTCOME=report; break; }
-     # <adapter ごとの補助信号チェック。下記 herdr/Orca 参照>
+     ST="$(<adapter の poll_state 判定結果: working|done|blocked|unknown>)"
+     case "$ST" in done|blocked) OUTCOME="state:$ST"; break;; esac
      [ "$(date +%s)" -ge "$DEADLINE" ] && break
      sleep 5
    done
    echo "OUTCOME=$OUTCOME"
    ```
 
-   完了状態に `idle` を含めない。`idle` は初回 prompt を処理する前にも通る状態で、完了と区別できない。turn の完了は integration が `done` として報告する
-
-   - **herdr**: ループのコメント行を以下に差し替えて `agent_status` を補助信号にする:
-
-     ```sh
-     ST=$(herdr agent get "$PANE" 2>/dev/null | jq -r '.result.agent.agent_status')
-     case "$ST" in done|blocked) OUTCOME="state:$ST"; break;; esac
-     ```
-
-   - **Orca**: herdr の `agent_status` に相当する検証済みの状態フィールドが無い（`multiplexer-adapters.md` 参照）。代わりにループのコメント行を以下に差し替えて `read(pane_id)` の出力を補助信号にする:
-
-     ```sh
-     TAIL=$(orca terminal read --terminal "$PANE" --json 2>/dev/null | jq -r '.result.terminal.tail')
-     case "$TAIL" in
-       *"Do you trust the contents of this directory?"*|*"Hooks need review"*) OUTCOME=state:blocked; break;;
-     esac
-     ```
-
-     **これはベストエフォートのテキスト検査であり、herdr の `agent_status` のような証明された signal ではない**——Dispatch 節で挙げた起動時ダイアログの文言（`Do you trust the contents of this directory?` / `Hooks need review`）が `tail` に残っている場合を承認待ちで stuck しているとみなして `OUTCOME=state:blocked` を設定しループを break する。文言が残っていなくても実行中でないことの証明にはならない点に注意する
+   `working`/`unknown` はループを継続する。`poll_state` の具体的な判定方法（herdr/Orca それぞれの検証済み度合いを含む）は `multiplexer-adapters.md` の `poll_state` 行を参照。完了状態に `idle` を含めない——`idle` は初回 prompt を処理する前にも通る状態で完了と区別できないため、herdr の `poll_state` は `idle` を `unknown` として返す
 
 2. `OUTCOME=state:blocked` なら実行途中の承認要求。Failure Modes に従って解消し、ループに戻る
 3. `OUTCOME=report` なら STATUS 行（DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED）を読む
-4. `OUTCOME=timeout` なら停止ではなくチェックポイントとして扱う（Failure Modes 参照）
+4. `OUTCOME=state:done` または `OUTCOME=timeout` なら停止ではなくチェックポイントとして扱う——report file を確認し、`STATUS:` があれば読む。無ければ Failure Modes 参照
 5. STATUS は SDD の Handling Implementer Status に従って処理する
 
 **report file を第一信号にする理由**: `STATUS:` 行は dispatch prompt が Codex に「最後に書け」と指示している本 skill 自身の契約であり、herdr の state machine から独立している。`herdr agent wait` は使わない——`--until` の集合を間違えると無言で永久にブロックし、停止と正常な待機の区別が最も付きにくい形の失敗になる（打ち切り線の無い待機は Red Flags でも禁止）。
@@ -219,17 +187,7 @@ NEEDS_CONTEXT・BLOCKED・レビュー指摘の fix は、生きた Codex に投
 
    ビジー中の Codex に送っても実行中のターンを中断せず、完了後に次のターンとして安全にキューされることを実地確認済み。**送信するメッセージ本文に必ず「report file を上書きすること」を再度書く**——dispatch prompt にも同じ規約があるが、redispatch 経由で思い出させないと append されてしまい、次の Await が前ラウンドの STATUS で誤検知する
 
-3. **fallback mode**: 現行どおり multiplexer adapter の `send_text`/`send_keys` で TUI に投入する:
-
-   ```sh
-   # herdr の場合
-   herdr pane send-text "$PANE" "<回答/findings>"
-   sleep 2
-   herdr pane send-keys "$PANE" Enter
-   # Orca の場合は send_text と send_keys(Enter) を分離して2回送る（multiplexer-adapters.md 参照）
-   ```
-
-   `herdr agent prompt` は使わない。`--wait --until working` を付けても、起動直後の一過性の `working` を拾って投入せずに成功を返すことがある（`--help` の "It does not track turns"）。**投入されたことを確認する**（`tail -1 ~/.codex/history.jsonl` の行数が増え、末尾が今の prompt であること）
+3. **fallback mode**: adapter の `send_text(pane_id, text)` / `send_keys(pane_id, keys)` で TUI に投入する。具体的なコマンドは `multiplexer-adapters.md` を参照（Orca は `send_text` と `send_keys` を分離して2回送る必要がある点に注意）。herdr の `agent prompt` は使わない——`--wait --until working` を付けても、起動直後の一過性の `working` を拾って投入せずに成功を返すことがある（`--help` の "It does not track turns"）。**投入されたことを確認する**（herdr: `tail -1 ~/.codex/history.jsonl` の行数が増え末尾が今の prompt であること。Orca: adapter の `read(pane_id)` で投入内容が pane に反映されていることを確認する）
 4. Await を実行する（次節）。fallback mode の場合、report file には前ラウンドの `STATUS:` が既にあり第一信号が誤検知するため、「Await」節末尾の「`STATUS:` が信号として使えない場合の代替信号」を参照して commit 数か round 見出しに切り替える
 
 生きた Codex に投げ返すことで作業中の文脈を保持する。バッチ境界を跨ぐとき（次バッチ）だけ pane を閉じて fresh に開き直す（「Batching Strategy」参照）。バッチ内の fix round では常に同じ pane を live で使う。

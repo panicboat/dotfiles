@@ -1,6 +1,6 @@
 # Multiplexer Adapter Contract
 
-codex-driven-development が pane 生成・破棄・起動直後の対話ダイアログ処理に要求する最小インターフェースと、対応 multiplexer ごとの具体コマンド。Redispatch の定常運用は agmsg（`../../../../.agents/skills/agmsg` 相当。実際のパスは `~/.agents/skills/agmsg`）に移るため、ここでの TUI 操作は「起動直後の一度きりの対話ダイアログ処理」と「agmsg bridge が arm しなかった場合の fallback mode」にのみ使う。
+codex-driven-development が pane 生成・破棄・起動直後の対話ダイアログ処理・状態確認に要求する最小インターフェースと、対応 multiplexer ごとの具体コマンド。Redispatch の定常運用は agmsg（`../../../../.agents/skills/agmsg` 相当。実際のパスは `~/.agents/skills/agmsg`）に移るため、ここでの TUI 操作は「起動直後の一度きりの対話ダイアログ処理」と「agmsg bridge が arm しなかった場合の fallback mode」にのみ使う。
 
 ## Contract
 
@@ -12,6 +12,8 @@ codex-driven-development が pane 生成・破棄・起動直後の対話ダイ�
 | `send_text(pane_id, text)` / `send_keys(pane_id, keys)` | 起動直後の対話ダイアログ処理、および fallback mode での Redispatch |
 | `read(pane_id)` | pane の可視テキストを読む（対話ダイアログの種類判定、fallback mode の状態確認） |
 | `close_pane(pane_id)` | pane を閉じる |
+| `receipt_check(pane_id) -> received｜not_received` | boot prompt が実際に届いた（処理が始まった）かを確認する。agmsg bridge が arm しなかった場合の fallback 判断に使う |
+| `poll_state(pane_id) -> working｜done｜blocked｜unknown` | pane の実行状態を確認する。fallback mode の Await ポーリングの補助信号に使う |
 
 adapter の選択は SKILL.md の Prerequisites 節で行う。以降の節は選ばれた adapter に応じて、この2つの表のうち片方だけを見ればよい。
 
@@ -28,6 +30,8 @@ Claude Code 自身が herdr pane の中で動いている（`herdr pane current`
 | `send_keys(pane_id, keys)` | `herdr pane send-keys <pane_id> <keys>`（例: `Enter`） |
 | `read(pane_id)` | `herdr agent read <pane_id> --source visible --lines <N>` |
 | `close_pane(pane_id)` | `herdr pane close <pane_id>` |
+| `receipt_check(pane_id)` | `agent_status` が `idle` を抜けたかをポーリングする（`agent start` 直後は `idle` を通るため単発チェックでは判定できない）: `for i in $(seq 1 20); do ST=$(herdr agent get <pane_id> \| jq -r '.result.agent.agent_status'); case "$ST" in working\|done\|blocked) break;; esac; sleep 3; done`。`working`/`done`/`blocked` のいずれかで抜ければ `received`。`idle` のまま枯渇したら `tail -1 ~/.codex/history.jsonl` の末尾が対象の boot prompt と一致するかを見る——一致すれば `received`（Codex が遅いだけ）、不一致なら `not_received` |
+| `poll_state(pane_id)` | `herdr agent get <pane_id> \| jq -r '.result.agent.agent_status'` の結果をそのまま `working`/`done`/`blocked` として使う。`idle` は初回 prompt を処理する前にも通る状態で完了と区別できないため `unknown` として返す |
 
 ## Orca
 
@@ -42,6 +46,8 @@ Claude Code 自身が Orca 管理下の pane で動いていることが前提�
 | `send_keys(pane_id, "Enter")` | `orca terminal send --terminal <pane_id> --enter`（`send_text` とは別呼び出しにする） |
 | `read(pane_id)` | `orca terminal read --terminal <pane_id> --json` → `result.terminal.tail`（ANSI 制御文字混じりの生テキストが返るため、パース時は考慮する） |
 | `close_pane(pane_id)` | `orca terminal close --terminal <pane_id>`。**既知の未解決 gap**: `orca terminal create` で作成した pane が `orca terminal list` に一度も現れず、その handle で `close_pane` を呼ぶと `tab_not_found` で失敗するケースを実地確認済み。原因未特定 |
+| `receipt_check(pane_id)` | `read(pane_id)`（`orca terminal read --terminal <pane_id> --json` → `result.terminal.tail`）で boot prompt のテキストが composer / 入力欄に未送信のまま残っていないかを確認する。残っていなければ `received`。**ベストエフォート**——herdr の `agent_status` のような証明された signal ではなく、テキストが消えていても Codex 側が処理を始めた確証にはならない |
+| `poll_state(pane_id)` | `read(pane_id)` の `result.terminal.tail` が既知の対話ダイアログ文言（`Do you trust the contents of this directory?` / `Hooks need review`）を含めば `blocked`。それ以外は常に `unknown`（herdr の `agent_status` に相当する検証済みの状態フィールドが無いため、`working`/`done` の判別はしない） |
 
 ## bridge armed 確認（multiplexer 非依存）
 
