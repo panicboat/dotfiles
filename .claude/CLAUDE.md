@@ -1,12 +1,12 @@
 @../AGENTS.md
 
-## Priority
+## Scope
 
-- このファイルのルールは最優先。skill・subagent・default 動作・既存コード / ドキュメントの前例より上位
-- ルール違反の可能性がある操作の前に、必ずユーザー確認を取る
-- subagent に作業を委譲する場合も、このルールを明示的に伝える
+CLAUDE.md は Claude Code 固有のツール運用ルール（worktree・superpowers skill・agmsg skill の操作手順）を扱う。Priority を含む汎用的な開発規範（言語・命名・実装方針・Git 運用等）は AGENTS.md 側に一元化し、`@../AGENTS.md` で読み込む。ここでの重複記載はしない。
 
 ## Workflow
+
+対象が git リポジトリでない場合、以下の確認は不要（worktree・ブランチという概念自体が成立しないため）。
 
 ファイルへの書き込み（docs・plan・コードを問わず）を行う前に、以下のいずれかを選択するようユーザーに確認する。brainstorming など会話のみで完結する段階では確認不要。
 
@@ -44,6 +44,7 @@ skill が生成する spec / plan を commit するかを作業開始時に一�
 1. codex-driven-development（実装を Codex に委譲してトークン使用量を分散。対応する multiplexer（herdr/Orca）のセッション内であることが前提）
 2. subagent-driven-development（Claude subagent で実行）
 3. executing-plans（このセッションでインライン実行）
+4. 任意入力（上記以外の方法をユーザーが指定）
 
 ## agmsg
 
@@ -57,6 +58,7 @@ fujibee/agmsg 純正 skill（`agmsg:agmsg`）を利用する際の運用ルー�
 1. 新規 team を作成する（team 名と agent 名を指定）
 2. 既存 team に join する
 3. 現在登録済みの identity のまま使う
+4. 任意入力（上記以外の方法をユーザーが指定）
 
 事前取得は選択に必要な最小限に留める。3 択の提示だけなら追加コマンドを走らせない。選択後の分岐:
 
