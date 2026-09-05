@@ -46,6 +46,14 @@ skill が生成する spec / plan を commit するかを作業開始時に一�
 3. executing-plans（このセッションでインライン実行）
 4. 任意入力（上記以外の方法をユーザーが指定）
 
+#### codex-driven-development: 複数 worktree 並行時の Monitor 設定漏れ
+
+同一セッション内で複数の worktree（複数 plan）に対して codex-driven-development を並行実行する場合、2 つ目以降の worktree で `delivery.sh set monitor claude-code <project>` を実行すると「A watch.sh is already streaming into this session」と表示されるが、これは誤検知であり、その worktree の完了通知は実際には届かない。
+
+- 症状: 2 つ目以降の worktree で dispatch した Codex の完了報告（agmsg 経由）が Monitor 通知として一切届かず、能動的に `inbox.sh` で確認するまで気づけない
+- ありがちな間違い: 「既存の watcher がある」という表示を、その worktree も監視できていると誤解する
+- 正しい一手: `delivery.sh` が書く pidfile は `watch.<session_id>.pid` で session_id 単位のキーであり project_path 単位ではないため、1 セッションにつき watcher は 1 つしか起動されない。2 つ目以降の worktree には Monitor tool で `~/.agents/skills/agmsg/scripts/watch.sh <一意な session_id サフィックス> <project_path> claude-code` を明示的に個別起動する（例: 元の session_id に `.plan2` のようなサフィックスを付けて pidfile の衝突を避ける）。並行 worktree の数だけ Monitor を個別に起動する
+
 ## agmsg
 
 fujibee/agmsg 純正 skill（`agmsg:agmsg`）を利用する際の運用ルール。カスタム skill（`agmsg-teams-cleanup` 等）には適用しない。
