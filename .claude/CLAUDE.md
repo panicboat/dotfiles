@@ -46,9 +46,9 @@ skill が生成する spec / plan を commit するかを作業開始時に一�
 3. executing-plans（このセッションでインライン実行）
 4. 任意入力（上記以外の方法をユーザーが指定）
 
-### Concurrent Worktrees
+### codex-driven-development
 
-Plan Execution で 1（codex-driven-development）を選び、同一セッション内で複数 worktree に対して並行実行する場合、2 つ目以降の worktree にも Monitor tool で watch.sh を個別に起動する: `~/.agents/skills/agmsg/scripts/watch.sh <session_id に一意なサフィックスを付けたもの> <project_path> claude-code`
+同一セッション内で複数 worktree に対して並行実行する場合、2 つ目以降の worktree にも Monitor tool で watch.sh を個別に起動する: `~/.agents/skills/agmsg/scripts/watch.sh <session_id に一意なサフィックスを付けたもの> <project_path> claude-code`
 
 ## agmsg
 
