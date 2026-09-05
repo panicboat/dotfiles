@@ -46,7 +46,7 @@ skill が生成する spec / plan を commit するかを作業開始時に一�
 3. executing-plans（このセッションでインライン実行）
 4. 任意入力（上記以外の方法をユーザーが指定）
 
-1 を選び、同一セッション内で複数 worktree に対して並行実行する場合は、2 つ目以降の worktree でも Monitor を個別に起動する。`delivery.sh set monitor claude-code <project>` が返す「既存の watcher がある」という表示は 1 つ目の worktree の watcher を指しているだけで、2 つ目以降は実際には監視されない（pidfile が `watch.<session_id>.pid` と session_id 単位のキーであり project_path 単位ではないため）。`~/.agents/skills/agmsg/scripts/watch.sh <session_id に一意なサフィックスを付けたもの> <project_path> claude-code` を Monitor tool で並行 worktree の数だけ個別に起動する。
+1 を選び、同一セッション内で複数 worktree に対して並行実行する場合、2 つ目以降の worktree にも `~/.agents/skills/agmsg/scripts/watch.sh <session_id に一意なサフィックスを付けたもの> <project_path> claude-code` を Monitor tool で個別に起動する（`delivery.sh set monitor` の「既存の watcher がある」表示は 1 つ目の worktree の分であり、pidfile が session_id 単位のため 2 つ目以降は自動では起動されない）。
 
 ## agmsg
 
