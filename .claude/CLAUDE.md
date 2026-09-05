@@ -46,6 +46,10 @@ skill が生成する spec / plan を commit するかを作業開始時に一�
 3. executing-plans（このセッションでインライン実行）
 4. 任意入力（上記以外の方法をユーザーが指定）
 
+### codex-driven-development
+
+同一セッション内で複数 worktree に対して並行実行する場合、2 つ目以降の worktree にも Monitor tool で watch.sh を個別に起動する: `~/.agents/skills/agmsg/scripts/watch.sh <session_id に一意なサフィックスを付けたもの> <project_path> claude-code`
+
 ## agmsg
 
 fujibee/agmsg 純正 skill（`agmsg:agmsg`）を利用する際の運用ルール。カスタム skill（`agmsg-teams-cleanup` 等）には適用しない。
