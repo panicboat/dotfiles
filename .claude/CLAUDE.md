@@ -48,8 +48,6 @@ skill が生成する spec / plan を commit するかを作業開始時に一�
 
 1 を選び、同一セッション内で複数 worktree に対して並行実行する場合、2 つ目以降の worktree にも Monitor tool で watch.sh を個別に起動する: `~/.agents/skills/agmsg/scripts/watch.sh <session_id に一意なサフィックスを付けたもの> <project_path> claude-code`
 
-`delivery.sh set monitor` の「既存の watcher がある」表示は 1 つ目の worktree の分でしかなく、pidfile が session_id 単位のため 2 つ目以降は自動では起動されない。
-
 ## agmsg
 
 fujibee/agmsg 純正 skill（`agmsg:agmsg`）を利用する際の運用ルール。カスタム skill（`agmsg-teams-cleanup` 等）には適用しない。
