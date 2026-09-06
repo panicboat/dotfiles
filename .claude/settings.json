@@ -6,7 +6,6 @@
     "codex@openai-codex": true,
     "compact-plus@compact-plus": true,
     "ruby-lsp@claude-plugins-official": true,
-    "stripe@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true
   },
   "env": {
@@ -45,9 +44,5 @@
   },
   "remoteControlAtStartup": true,
   "skipDangerousModePermissionPrompt": true,
-  "statusLine": {
-    "command": "$HOME/.claude/scripts/statusline.sh",
-    "type": "command"
-  },
   "useAutoModeDuringPlan": true
 }
