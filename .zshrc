@@ -131,9 +131,9 @@ alias de='docker exec -it $(docker ps | peco | cut -d " " -f 1) /bin/bash'
 
 ## function
 
-function codex() {
-  $HOME/.agents/skills/agmsg/scripts/drivers/types/codex/codex-shim.sh "$@"
-}
+# function codex() {
+#   $HOME/.agents/skills/agmsg/scripts/drivers/types/codex/codex-shim.sh "$@"
+# }
 
 function brew-update() {
   brew update && brew upgrade && brew upgrade --cask && brew cleanup && brew autoremove
