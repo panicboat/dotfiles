@@ -142,3 +142,6 @@ function brew-update() {
 function eks-login() {
   source "${HOME}/.script/eks-login.sh" "$@"
 }
+
+# Added by rustup: cargo bin directory on PATH
+. "$HOME/.cargo/env"
