@@ -38,10 +38,12 @@
     }
   },
   "inputNeededNotifEnabled": true,
+  "language": "Japanese",
   "model": "claude-sonnet-5",
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
+  "promptSuggestionEnabled": false,
   "remoteControlAtStartup": true,
   "skipDangerousModePermissionPrompt": true,
   "useAutoModeDuringPlan": true
