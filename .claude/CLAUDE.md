@@ -19,10 +19,10 @@ CLAUDE.md は Claude Code 固有のツール運用ルール（worktree・superpo
 
 ### Worktree Operations
 
-- リポジトリ内の `.claude/worktrees/<dir>` にディレクトリを作成する。`<dir>` はブランチ名の `/` を `-` に置換した値（例: `feat/login` → `.claude/worktrees/feat-login/`）
-- 初回利用時は `.git/info/exclude` に `/.claude/worktrees/` を追加しておく（個人ローカルでの除外）
-- 新規ブランチは default branch を base に作成する: `git worktree add -b <branch> .claude/worktrees/<dir> origin/<default-branch>`
-- 作業完了・マージ後は `git worktree remove .claude/worktrees/<branch>` で削除し、必要に応じて `git worktree prune` で残骸を整理する
+- リポジトリ内の `.worktrees/<dir>` にディレクトリを作成する。`<dir>` はブランチ名の `/` を `-` に置換した値（例: `feat/login` → `.worktrees/feat-login/`）
+- 初回利用時は `.git/info/exclude` に `/.worktrees/` を追加しておく（個人ローカルでの除外）
+- 新規ブランチは default branch を base に作成する: `git worktree add -b <branch> .worktrees/<dir> origin/<default-branch>`
+- 作業完了・マージ後は `git worktree remove .worktrees/<branch>` で削除し、必要に応じて `git worktree prune` で残骸を整理する
 
 ## Superpowers
 
