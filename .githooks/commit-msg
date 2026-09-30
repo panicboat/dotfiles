@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# AGENTS.md prohibits Co-Authored-By in commit messages regardless of tooling defaults.
+if grep -qi '^co-authored-by:' "$1"; then
+  echo "commit-msg hook: 'Co-Authored-By' is prohibited by AGENTS.md. Remove it from the commit message." >&2
+  exit 1
+fi
