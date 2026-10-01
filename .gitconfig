@@ -16,6 +16,7 @@
 	filemode = false
 	ignorecase = false
 	editor = code --wait
+	hooksPath = ~/.githooks
 [interactive]
 	diffFilter = --color-only
 [merge]

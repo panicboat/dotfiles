@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+hook_name="$(basename "$0")"
+
+# AGENTS.md prohibits Co-Authored-By in commit messages regardless of tooling defaults.
+if [ "$hook_name" = "commit-msg" ] && grep -qi '^co-authored-by:' "$1"; then
+  echo "commit-msg hook: 'Co-Authored-By' is prohibited by AGENTS.md. Remove it from the commit message." >&2
+  exit 1
+fi
+
+# Chain to the invoking repository's own hook at the default location, if any.
+native_hook="$(git rev-parse --git-common-dir)/hooks/$hook_name"
+if [ -x "$native_hook" ]; then
+  exec "$native_hook" "$@"
+fi
