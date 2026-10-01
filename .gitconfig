@@ -16,7 +16,7 @@
 	filemode = false
 	ignorecase = false
 	editor = code --wait
-	hooksPath = ~/GitHub/panicboat/dotfiles/.githooks
+	hooksPath = ~/.githooks
 [interactive]
 	diffFilter = --color-only
 [merge]
