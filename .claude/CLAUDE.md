@@ -34,7 +34,7 @@ skill が生成する spec / plan を commit するかを作業開始時に一�
 **skill 側の `save and commit` および既定の保存先より本ルールを優先する。**
 
 1. commit する: skill 既定の保存先に従う
-2. commit しない: `.claude/superpowers/` 以下に保存し、`/.claude/superpowers/` を `.git/info/exclude` に追加する（skill 既定の保存先は commit を前提としがちなため、非管理の成果物と混在させない）
+2. commit しない: `.superpowers/` 以下に保存し、`/.superpowers/` を `.git/info/exclude` に追加する（skill 既定の保存先は commit を前提としがちなため、非管理の成果物と混在させない）
 
 ### Plan Execution
 
