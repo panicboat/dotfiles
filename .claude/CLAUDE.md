@@ -17,13 +17,6 @@ CLAUDE.md は Claude Code 固有のツール運用ルール（worktree・superpo
 
 例外: 実装 plan 実行のために dispatch された実装担当（task brief 等の明示的な作業指示に従い、作業対象の worktree/branch が既に確定した状態で単一タスクを実装する場合）は、この確認を行わず確定済みのブランチで in-place に作業する。ブランチ・worktree・実行方式を問い直さない。
 
-### Worktree Operations
-
-- リポジトリ内の `.worktrees/<dir>` にディレクトリを作成する。`<dir>` はブランチ名の `/` を `-` に置換した値（例: `feat/login` → `.worktrees/feat-login/`）
-- 初回利用時は `.git/info/exclude` に `/.worktrees/` を追加しておく（個人ローカルでの除外）
-- 新規ブランチは default branch を base に作成する: `git worktree add -b <branch> .worktrees/<dir> origin/<default-branch>`
-- 作業完了・マージ後は `git worktree remove .worktrees/<branch>` で削除し、必要に応じて `git worktree prune` で残骸を整理する
-
 ## Superpowers
 
 superpowers 系 skill を利用する際の運用ルール。

@@ -93,3 +93,9 @@
 - 新規ブランチの初回 push は必ず `git push -u origin HEAD` でトラッキングを設定する
 - 作業ブランチが一区切りしたら push し、**Draft PR を作成して可視化する**（`gh pr create --draft`。Draft 以外で作らない）
 - PR のタイトル（件名）は英語で記述する
+
+## Worktree
+
+- リポジトリ内の `.worktrees/<dir>` にディレクトリを作成する。`<dir>` はブランチ名の `/` を `-` に置換した値（例: `feat/login` → `.worktrees/feat-login/`）
+- 初回利用時は `.git/info/exclude` に `/.worktrees/` を追加しておく（個人ローカルでの除外）
+- 新規ブランチは default branch を base に作成する: `git worktree add -b <branch> .worktrees/<dir> origin/<default-branch>`
