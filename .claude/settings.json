@@ -9,7 +9,7 @@
     "superpowers@claude-plugins-official": true
   },
   "env": {
-    "CLAUDE_CODE_SUBAGENT_MODEL": "claude-sonnet-5-5"
+    "CLAUDE_CODE_SUBAGENT_MODEL": "claude-haiku-5-5"
   },
   "extraKnownMarketplaces": {
     "claude-community": {
@@ -41,8 +41,14 @@
   "language": "Japanese",
   "model": "opus",
   "modelSettings": {
+    "claude-haiku-5-5": {
+      "effortLevel": "medium"
+    },
     "claude-opus-5-5": {
       "effortLevel": "high"
+    },
+    "claude-sonnet-5-5": {
+      "effortLevel": "xhigh"
     }
   },
   "permissions": {
