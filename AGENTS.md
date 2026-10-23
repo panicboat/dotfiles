@@ -93,8 +93,9 @@
 - 新規ブランチの初回 push は必ず `git push -u origin HEAD` でトラッキングを設定する
 - 作業ブランチが一区切りしたら push し、**Draft PR を作成して可視化する**（`gh pr create --draft`。Draft 以外で作らない）
 - PR のタイトル（件名）は英語で記述する
-- PR を作成する前に、リポジトリの PR テンプレート（`.github/pull_request_template.md` 等）の有無を確認し、あればその見出し構成とコメントの指示どおりに本文を書く（`gh pr create --body` ではテンプレートが自動適用されないため）
-- PR 本文は 1 文ごとに改行する。箇条書きの項目は要点 1 文だけにし、理由・補足はその下の階層の項目に分ける
+- PR・issue を作成する前に、リポジトリのテンプレート（`.github/pull_request_template.md`・`.github/ISSUE_TEMPLATE/` 等）の有無を確認し、あればその見出し構成とコメントの指示どおりに本文を書く（`gh pr create --body`・`gh issue create --body` ではテンプレートが自動適用されないため）
+- issue のタイトルにも、PR と同じ Conventional Commits の type（`feat:`・`fix:`・`perf:`・`refactor:`・`docs:`・`ci:`・`chore:` 等）を付ける
+- PR・issue の本文は 1 文ごとに改行する。箇条書きの項目は要点 1 文だけにし、理由・補足はその下の階層の項目に分ける
 
 ## Worktree
 
