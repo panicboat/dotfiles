@@ -93,6 +93,7 @@
 - 新規ブランチの初回 push は必ず `git push -u origin HEAD` でトラッキングを設定する
 - 作業ブランチが一区切りしたら push し、**Draft PR を作成して可視化する**（`gh pr create --draft`。Draft 以外で作らない）
 - PR のタイトル（件名）は英語で記述する
+- PR を作成する前に、リポジトリの PR テンプレート（`.github/pull_request_template.md` 等）の有無を確認し、あればその見出し構成とコメントの指示どおりに本文を書く（`gh pr create --body` ではテンプレートが自動適用されないため）
 
 ## Worktree
 
