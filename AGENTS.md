@@ -96,6 +96,8 @@
 - PR・issue を作成する前に、リポジトリのテンプレート（`.github/pull_request_template.md`・`.github/ISSUE_TEMPLATE/` 等）の有無を確認し、あればその見出し構成とコメントの指示どおりに本文を書く（`gh pr create --body`・`gh issue create --body` ではテンプレートが自動適用されないため）
 - issue のタイトルにも、PR と同じ Conventional Commits の type（`feat:`・`fix:`・`perf:`・`refactor:`・`docs:`・`ci:`・`chore:` 等）を付ける
 - PR・issue の本文は 1 文ごとに改行する。箇条書きの項目は要点 1 文だけにし、理由・補足はその下の階層の項目に分ける
+- Claude Code は `docs-check-approved` ラベルを付けず、status `Docs Sync Check` を書かない（人間が判定の誤りを確かめて通すための手段で、GitHub の権限では Claude Code とユーザーを区別できないため）
+- 仕様書・規約が振る舞いを説明しているリポジトリでは、振る舞いを変える PR の中で、仕様書・規約も同じ PR で更新する
 
 ## Worktree
 
