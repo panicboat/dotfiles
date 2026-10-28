@@ -93,8 +93,10 @@
 - 新規ブランチの初回 push は必ず `git push -u origin HEAD` でトラッキングを設定する
 - 作業ブランチが一区切りしたら push し、**Draft PR を作成して可視化する**（`gh pr create --draft`。Draft 以外で作らない）
 - PR のタイトル（件名）は英語で記述する
-- PR・issue を作成する前に、リポジトリのテンプレート（`.github/pull_request_template.md`・`.github/ISSUE_TEMPLATE/` 等）の有無を確認し、あればその見出し構成とコメントの指示どおりに本文を書く（`gh pr create --body`・`gh issue create --body` ではテンプレートが自動適用されないため）
-- リポジトリに同じ種類のテンプレートが無い場合は、owner の `.github` リポジトリのテンプレート（`gh api repos/<owner>/.github/contents/<path>`）の有無を確認し、あればそれに従う（GitHub は自前のテンプレートを持たないリポジトリに `.github` リポジトリのテンプレートを既定として使うため）
+- PR・issue を作成する前に、同じ種類のテンプレートを次の順に探し、最初に見つかったものの見出し構成とコメントの指示どおりに本文を書く（`gh pr create --body`・`gh issue create --body` ではテンプレートが自動適用されないため）
+  1. リポジトリ（`.github/pull_request_template.md`・`.github/ISSUE_TEMPLATE/` 等）
+  2. owner の `.github` リポジトリ（`gh api repos/<owner>/.github/contents/<path>`。GitHub は自前のテンプレートを持たないリポジトリにこれを既定として使う）
+  3. `panicboat/.github`（PR のみ。Documents 節を除く）
 - issue のタイトルにも、PR と同じ Conventional Commits の type（`feat:`・`fix:`・`perf:`・`refactor:`・`docs:`・`ci:`・`chore:` 等）を付ける
 - PR・issue の本文は 1 文ごとに改行する。箇条書きの項目は要点 1 文だけにし、理由・補足はその下の階層の項目に分ける
 
