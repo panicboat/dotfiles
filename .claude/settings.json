@@ -37,6 +37,20 @@
       }
     }
   },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "[ ! -x \"$HOME/.claude/scripts/doc-lint-hook.sh\" ] || \"$HOME/.claude/scripts/doc-lint-hook.sh\"",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "Edit|Write"
+      }
+    ]
+  },
   "inputNeededNotifEnabled": true,
   "language": "Japanese",
   "model": "opus",

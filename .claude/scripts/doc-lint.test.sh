@@ -2,6 +2,9 @@
 # Behavior tests for doc-lint.sh; they need vale and textlint (see .config) except test_succeeds_without_tools.
 set -u
 
+# Hooks export GIT_DIR and GIT_INDEX_FILE; clear them so the helpers never target the outer repository.
+unset $(git rev-parse --local-env-vars)
+
 repo_root="$(cd "$(dirname "$0")/../.." && pwd -P)"
 real_home="$HOME"
 work="$(mktemp -d)"
@@ -11,6 +14,11 @@ case_failed=0
 lint_out=""
 lint_err=""
 lint_status=0
+editor_out=""
+editor_err=""
+editor_status=0
+commit_out=""
+commit_status=0
 
 # Prints the path of a temporary HOME that links the dotfiles config, scripts, and tool directory.
 make_home() {
@@ -86,6 +94,54 @@ git_in() {
   local home="$1" dir="$2"
   shift 2
   HOME="$home" git -C "$dir" -c core.hooksPath=/dev/null -c user.name=test -c user.email=test@example.com "$@"
+}
+
+# Runs doc-lint-hook.sh from <dir> with the PostToolUse input <json> and sets editor_out, editor_err, and editor_status.
+run_editor_hook() {
+  local home="$1" dir="$2" json="$3" err_file
+  err_file="$(mktemp "$work/err.XXXXXX")"
+  editor_out="$(cd "$dir" && printf '%s' "$json" | HOME="$home" "$home/.claude/scripts/doc-lint-hook.sh" 2>"$err_file")"
+  editor_status=$?
+  editor_err="$(cat "$err_file")"
+}
+
+# Prints the PostToolUse input for an edit of <file>.
+edit_input() {
+  jq -n --arg path "$1" '{tool_input: {file_path: $path}}'
+}
+
+# Commits in <dir> through the dotfiles git hooks and sets commit_out (stdout and stderr) and commit_status.
+commit_with_hooks() {
+  local home="$1" dir="$2"
+  commit_out="$(HOME="$home" git -C "$dir" -c core.hooksPath="$repo_root/.githooks" -c user.name=test -c user.email=test@example.com commit -q -m test 2>&1)"
+  commit_status=$?
+}
+
+commit_count() {
+  git_in "$1" "$2" rev-list --count HEAD 2>/dev/null
+}
+
+# Creates a repository in <dir> whose only commit holds docs/a.md with a passive line.
+make_repository_with_old_passive_line() {
+  local home="$1" dir="$2"
+  mkdir -p "$dir/docs"
+  git_in "$home" "$dir" init -q
+  printf 'The old file is deleted.\n' >"$dir/docs/a.md"
+  git_in "$home" "$dir" add docs/a.md
+  git_in "$home" "$dir" commit -q -m initial
+}
+
+# Commits a new passive line in docs/a.md of <dir> and asserts that the hook reports only that line.
+assert_commit_reports_only_new_line() {
+  local home="$1" dir="$2"
+  printf '\nThe Pod is read by a panel.\n' >>"$dir/docs/a.md"
+  git_in "$home" "$dir" add docs/a.md
+  commit_with_hooks "$home" "$dir"
+  assert_equals "$commit_status" "0"
+  assert_contains "$commit_out" "docs/a.md:3:"
+  assert_contains "$commit_out" "is read"
+  assert_not_contains "$commit_out" "is deleted"
+  assert_equals "$(commit_count "$home" "$dir")" "2"
 }
 
 write_original_lines() {
@@ -290,6 +346,170 @@ test_survives_broken_repository_textlint_config() {
   assert_equals "$lint_status" "0"
 }
 
+test_hook_returns_additional_context() {
+  local home dir context
+  home="$(make_home)"
+  dir="$work/hook-context"
+  mkdir -p "$dir"
+  printf 'The Pod is read by a panel.\n' >"$dir/a.md"
+  run_editor_hook "$home" "$dir" "$(edit_input "$dir/a.md")"
+  assert_equals "$editor_status" "0"
+  if ! printf '%s' "$editor_out" | jq -e '.hookSpecificOutput.hookEventName == "PostToolUse"' >/dev/null 2>&1; then
+    printf '    expected a PostToolUse hookSpecificOutput\n    actual: %s\n' "$editor_out" >&2
+    case_failed=1
+  fi
+  context="$(printf '%s' "$editor_out" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null)"
+  assert_contains "$context" "is read"
+}
+
+test_hook_is_silent_for_other_files() {
+  local home dir
+  home="$(make_home)"
+  dir="$work/hook-other"
+  mkdir -p "$dir"
+  printf 'The Pod is read by a panel.\n' >"$dir/a.txt"
+  run_editor_hook "$home" "$dir" "$(edit_input "$dir/a.txt")"
+  assert_equals "$editor_out" ""
+  assert_equals "$editor_err" ""
+  assert_equals "$editor_status" "0"
+}
+
+test_hook_uses_file_repository_not_cwd() {
+  local home dir context
+  home="$(make_home)"
+  dir="$work/hook-repo"
+  mkdir -p "$dir/styles/X"
+  git_in "$home" "$dir" init -q
+  cat >"$dir/.vale.ini" <<'EOF'
+StylesPath = styles
+MinAlertLevel = suggestion
+
+[*.md]
+BasedOnStyles = X
+EOF
+  cat >"$dir/styles/X/Foo.yml" <<'EOF'
+extends: existence
+message: "Avoid '%s'."
+level: warning
+tokens:
+  - foo
+EOF
+  printf 'The foo is deleted by the tool.\n' >"$dir/a.md"
+  run_editor_hook "$home" "$work" "$(edit_input "$dir/a.md")"
+  context="$(printf '%s' "$editor_out" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null)"
+  assert_contains "$context" "X.Foo"
+  assert_not_contains "$context" "Google."
+}
+
+test_pre_commit_reports_and_succeeds() {
+  local home dir
+  home="$(make_home)"
+  dir="$work/commit-report"
+  make_repository_with_old_passive_line "$home" "$dir"
+  assert_commit_reports_only_new_line "$home" "$dir"
+}
+
+test_pre_commit_reports_changed_lines_in_linked_worktree() {
+  local home main dir
+  home="$(make_home)"
+  main="$work/commit-linked-main"
+  dir="$work/commit-linked"
+  make_repository_with_old_passive_line "$home" "$main"
+  git_in "$home" "$main" worktree add -q -b feature "$dir"
+  assert_commit_reports_only_new_line "$home" "$dir"
+}
+
+test_pre_commit_handles_paths_with_spaces() {
+  local home dir
+  home="$(make_home)"
+  dir="$work/commit-spaces"
+  mkdir -p "$dir/my docs"
+  git_in "$home" "$dir" init -q
+  printf 'placeholder\n' >"$dir/notes.txt"
+  git_in "$home" "$dir" add notes.txt
+  git_in "$home" "$dir" commit -q -m initial
+  printf 'The file is deleted.\n' >"$dir/my docs/a b.md"
+  git_in "$home" "$dir" add "my docs/a b.md"
+  commit_with_hooks "$home" "$dir"
+  assert_equals "$commit_status" "0"
+  assert_contains "$commit_out" "my docs/a b.md:1:"
+  assert_contains "$commit_out" "Google.Passive"
+  assert_equals "$(commit_count "$home" "$dir")" "2"
+}
+
+test_pre_commit_handles_deleted_markdown() {
+  local home dir
+  home="$(make_home)"
+  dir="$work/commit-deleted"
+  mkdir -p "$dir"
+  git_in "$home" "$dir" init -q
+  printf 'The file is deleted.\n' >"$dir/a.md"
+  git_in "$home" "$dir" add a.md
+  git_in "$home" "$dir" commit -q -m initial
+  git_in "$home" "$dir" rm -q a.md
+  commit_with_hooks "$home" "$dir"
+  assert_equals "$commit_status" "0"
+  assert_equals "$commit_out" ""
+  assert_equals "$(commit_count "$home" "$dir")" "2"
+}
+
+test_pre_commit_without_doc_lint_succeeds() {
+  local home dir
+  home="$(make_home --without-scripts)"
+  dir="$work/commit-no-script"
+  mkdir -p "$dir"
+  git_in "$home" "$dir" init -q
+  printf 'The file is deleted.\n' >"$dir/a.md"
+  git_in "$home" "$dir" add a.md
+  commit_with_hooks "$home" "$dir"
+  assert_equals "$commit_status" "0"
+  assert_equals "$commit_out" ""
+  assert_equals "$(commit_count "$home" "$dir")" "1"
+}
+
+test_pre_commit_chains_native_hook() {
+  local home dir marker
+  home="$(make_home)"
+  dir="$work/commit-native"
+  marker="$work/native-hook-ran"
+  mkdir -p "$dir"
+  git_in "$home" "$dir" init -q
+  printf '#!/bin/sh\ntouch "%s"\n' "$marker" >"$dir/.git/hooks/pre-commit"
+  chmod +x "$dir/.git/hooks/pre-commit"
+  printf 'The file is deleted.\n' >"$dir/a.md"
+  git_in "$home" "$dir" add a.md
+  commit_with_hooks "$home" "$dir"
+  assert_equals "$commit_status" "0"
+  assert_contains "$commit_out" "Google.Passive"
+  if [ ! -e "$marker" ]; then
+    printf '    expected the repository pre-commit hook to run\n' >&2
+    case_failed=1
+  fi
+}
+
+test_commit_msg_does_not_lint() {
+  local home dir out
+  home="$(make_home)"
+  dir="$work/commit-msg"
+  mkdir -p "$dir"
+  git_in "$home" "$dir" init -q
+  printf 'The file is deleted.\n' >"$dir/a.md"
+  git_in "$home" "$dir" add a.md
+  printf 'docs: add a\n' >"$work/commit-msg.txt"
+  out="$(cd "$dir" && HOME="$home" "$repo_root/.githooks/pre-commit" 2>&1)"
+  assert_contains "$out" "Google.Passive"
+  out="$(cd "$dir" && HOME="$home" "$repo_root/.githooks/commit-msg" "$work/commit-msg.txt" 2>&1)"
+  assert_equals "$?" "0"
+  assert_not_contains "$out" "Google."
+}
+
+test_git_hooks_stay_identical() {
+  if ! cmp -s "$repo_root/.githooks/pre-commit" "$repo_root/.githooks/commit-msg"; then
+    printf '    .githooks/pre-commit and .githooks/commit-msg differ\n' >&2
+    case_failed=1
+  fi
+}
+
 tests="
 test_flags_passive_voice_in_original_lines
 test_accepts_reviewed_lines
@@ -304,6 +524,17 @@ test_caps_findings_per_file
 test_appends_guide_url_only_with_findings
 test_succeeds_without_tools
 test_survives_broken_repository_textlint_config
+test_hook_returns_additional_context
+test_hook_is_silent_for_other_files
+test_hook_uses_file_repository_not_cwd
+test_pre_commit_reports_and_succeeds
+test_pre_commit_reports_changed_lines_in_linked_worktree
+test_pre_commit_handles_paths_with_spaces
+test_pre_commit_handles_deleted_markdown
+test_pre_commit_without_doc_lint_succeeds
+test_pre_commit_chains_native_hook
+test_commit_msg_does_not_lint
+test_git_hooks_stay_identical
 "
 
 failures=0

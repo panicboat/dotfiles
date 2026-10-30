@@ -9,6 +9,12 @@ if [ "$hook_name" = "commit-msg" ] && grep -qi '^co-authored-by:' "$1"; then
   exit 1
 fi
 
+# SILENT: style findings are advisory and must never block a commit.
+if [ "$hook_name" = "pre-commit" ] && [ -x "$HOME/.claude/scripts/doc-lint.sh" ]; then
+  # GIT_DIR from a linked worktree hook makes `git -C <subdir>` treat the subdirectory as the work tree root, so doc-lint.sh runs without it.
+  git diff --cached --name-only --diff-filter=ACMR -z -- '*.md' | xargs -0 env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE "$HOME/.claude/scripts/doc-lint.sh" || true
+fi
+
 # Chain to the invoking repository's own hook at the default location, if any.
 native_hook="$(git rev-parse --git-common-dir)/hooks/$hook_name"
 if [ -x "$native_hook" ]; then
