@@ -38,6 +38,21 @@
 - 現在のタスク・修正への言及をしない（例: "Fixed for X"）。この情報は PR description に書く
 - 1コメントは1行に収める。複数行のコメントブロック・docstring は書かない。1行で説明しきれない非自明な制約は design doc / README に書き、コードには要点と参照だけを1行で残す
 
+### Style Sources
+
+Markdown・PR 本文・issue 本文・コミットメッセージを書く前に、次の順で実行する。完了条件は、適用するガイドの原文を当該セッションで 1 回読んでいること。
+
+1. リポジトリ独自のガイドがあれば読む（例: Argo の `docs/doc-changes.md`）
+2. Kubernetes Documentation Style Guide を `curl -fsSL https://raw.githubusercontent.com/kubernetes/website/main/content/en/docs/contribute/style/style-guide.md` で取得して読む（`WebFetch` は要約を挟むので使わない）
+3. 取得できなければ、取得できなかったことを報告して作業を続ける
+
+適用方法:
+
+- ガイド同士が矛盾する場合は、上の順で先のものを優先する
+- Kubernetes ガイドのうち、`Content best practices`・`Patterns to avoid`・`Markdown elements`・`Documentation formatting standards` を適用する。Hugo・shortcode・EditorConfig の節は Kubernetes の website リポジトリ以外に適用せず、API 名の節は Kubernetes を扱う文章にだけ適用する
+- 日本語の文章には、能動態・現在形・読者を主語にする・将来の予定を書かない、を適用する
+- linter（`doc-lint`）の指摘は 1 件ずつ判断し、誤検知は直さない。linter を黙らせる設定やコメントを追加しない
+
 ## Instructions
 
 ルール・prompt・subagent への指示に適用する。
