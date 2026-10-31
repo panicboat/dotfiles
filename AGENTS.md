@@ -81,7 +81,7 @@
 - diff にコメントの追加・変更が含まれる場合、完了報告前に追加したコメント全てを Documentation > Content Rules の該当基準（タスク/修正への言及・複数行）と突き合わせて見直す
 - 基準を満たさないコメントは削除する
 
-### Refactoring Review
+### Refactoring Checklist
 
 リファクタリングの対象を洗い出すときは、次の観点ごとに確認し、結果を一覧にする。
 
