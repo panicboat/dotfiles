@@ -107,7 +107,7 @@
 - PR・issue を作成する前に、同じ種類のテンプレートを次の順に探し、最初に見つかったものの見出し構成とコメントの指示どおりに本文を書く（`gh pr create --body`・`gh issue create --body` ではテンプレートが自動適用されないため）
   1. リポジトリ（`.github/pull_request_template.md`・`.github/ISSUE_TEMPLATE/` 等）
   2. owner の `.github` リポジトリ（`gh api repos/<owner>/.github/contents/<path>`。GitHub は自前のテンプレートを持たないリポジトリにこれを既定として使う）
-  3. `panicboat/.github`（PR のみ。Documents 節を除く）
+  3. `panicboat/.github`（PR のみ）
 - issue のタイトルにも、PR と同じ Conventional Commits の type（`feat:`・`fix:`・`perf:`・`refactor:`・`docs:`・`ci:`・`chore:` 等）を付ける
 - PR・issue の本文は 1 文ごとに改行する。箇条書きの項目は要点 1 文だけにし、理由・補足はその下の階層の項目に分ける
 
