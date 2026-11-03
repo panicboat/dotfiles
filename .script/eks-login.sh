@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# eks-login.sh - Source this to assume eks-admin-${env} role and update
+# eks-login.sh - Source this to assume the eks-admin role and update
 # kubeconfig for the panicboat platform EKS cluster.
 #
 # Usage:
@@ -16,7 +16,7 @@
 #
 # Prerequisites:
 #   - aws CLI v2 with credentials configured for an IAM principal that has
-#     sts:AssumeRole permission on the eks-admin-${env} role
+#     sts:AssumeRole permission on the eks-admin role
 #   - jq
 #   - kubectl
 
@@ -32,7 +32,7 @@ _env="${1:-production}"
 # panicboat/platform. Add new envs here when creating develop/staging EKS.
 # production/develop each live in their own dedicated AWS account (member
 # accounts under the panicboat Organization) since the account-separation
-# migration; eks-admin-${env} only trusts its own account's root, so we must
+# migration; eks-admin only trusts its own account's root, so we must
 # hop through OrganizationAccountAccessRole from the management account
 # first (a direct assume from the default identity gets AccessDenied).
 case "${_env}" in
@@ -54,7 +54,7 @@ _org_creds=$(aws sts assume-role \
   --query 'Credentials' \
   --output json)
 
-_role_arn="arn:aws:iam::${_account_id}:role/eks-admin-${_env}"
+_role_arn="arn:aws:iam::${_account_id}:role/eks-admin"
 echo "[eks-login] Assuming ${_role_arn} in ${_region}..."
 _creds=$(AWS_ACCESS_KEY_ID=$(echo "${_org_creds}" | jq -r .AccessKeyId) \
   AWS_SECRET_ACCESS_KEY=$(echo "${_org_creds}" | jq -r .SecretAccessKey) \
@@ -70,7 +70,7 @@ export AWS_SECRET_ACCESS_KEY=$(echo "${_creds}" | jq -r .SecretAccessKey)
 export AWS_SESSION_TOKEN=$(echo "${_creds}" | jq -r .SessionToken)
 
 aws sts get-caller-identity --query 'Arn' --output text
-aws eks update-kubeconfig --region "${_region}" --name "eks-${_env}"
+aws eks update-kubeconfig --region "${_region}" --name eks
 
 echo "[eks-login] Done. AWS_* env vars exported. Session valid for 1 hour."
 unset _env _region _account_id _role_arn _org_creds _creds
