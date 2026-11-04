@@ -2,7 +2,12 @@
 
 ## Scope
 
-CLAUDE.md は Claude Code 固有のツール運用ルール（worktree・superpowers skill・agmsg skill の操作手順）を扱う。Priority を含む汎用的な開発規範（言語・命名・実装方針・Git 運用等）は AGENTS.md 側に一元化し、`@../AGENTS.md` で読み込む。ここでの重複記載はしない。
+CLAUDE.md は Claude Code 固有のツール運用ルール（選択肢の提示・worktree・superpowers skill・agmsg skill の操作手順）を扱う。Priority を含む汎用的な開発規範（言語・命名・実装方針・Git 運用等）は AGENTS.md 側に一元化し、`@../AGENTS.md` で読み込む。ここでの重複記載はしない。
+
+## Choices
+
+ユーザーに選択肢を提示して選ばせるとき（本ファイルの各確認・skill が提示する選択肢を含む）は、必ず AskUserQuestion tool を使う。テキスト出力で選択肢を列挙して返答を待たない。
+本ファイルの選択肢にある「任意入力」は、AskUserQuestion が自動で付ける Other で代替し、option には含めない。
 
 ## Workflow
 
