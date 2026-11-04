@@ -2,7 +2,12 @@
 
 ## Scope
 
-CLAUDE.md は Claude Code 固有のツール運用ルール（worktree・superpowers skill・agmsg skill の操作手順）を扱う。Priority を含む汎用的な開発規範（言語・命名・実装方針・Git 運用等）は AGENTS.md 側に一元化し、`@../AGENTS.md` で読み込む。ここでの重複記載はしない。
+CLAUDE.md は Claude Code 固有のツール運用ルール（選択肢の提示・worktree・superpowers skill・agmsg skill の操作手順）を扱う。Priority を含む汎用的な開発規範（言語・命名・実装方針・Git 運用等）は AGENTS.md 側に一元化し、`@../AGENTS.md` で読み込む。ここでの重複記載はしない。
+
+## Choices
+
+ユーザーに選択肢を提示して選ばせるとき（本ファイルの各確認・skill が提示する選択肢を含む）は、必ず AskUserQuestion tool を使う。テキスト出力で選択肢を列挙して返答を待たない。
+本ファイルの選択肢にある「任意入力」は、AskUserQuestion が自動で付ける Other で代替し、option には含めない。
 
 ## Workflow
 
@@ -23,11 +28,29 @@ superpowers 系 skill を利用する際の運用ルール。
 
 ### Artifacts
 
-skill が生成する spec / plan を commit するかを作業開始時に一度確認する（Workflow の branch / worktree 確認と同じタイミングでよい）。
+skill が生成する spec / plan について、Commit と Issue の 2 点を作業開始時に一度確認する（Workflow の branch / worktree 確認と同じタイミングでよい）。
 **skill 側の `save and commit` および既定の保存先より本ルールを優先する。**
+
+#### Commit
 
 1. commit する: skill 既定の保存先に従う
 2. commit しない: `.superpowers/` 以下に保存し、`/.superpowers/` を `.git/info/exclude` に追加する（skill 既定の保存先は commit を前提としがちなため、非管理の成果物と混在させない）
+
+#### Issue
+
+Commit の選択結果に関わらず、作業対象リポジトリの Issue に書き出すかを確認する。
+
+1. 新規 Issue を作成して書き出す
+2. 既存 Issue に書き出す（Issue 番号をユーザーが指定）
+3. 書き出さない
+
+会話・ブランチ名・PR 本文から対象 Issue が 1 件に定まる場合は、2 を「既存 Issue #<番号> に書き出す」と番号を埋めて提示し、番号を聞き直さない。
+
+1 or 2 を選んだ場合、spec / plan を 1 つの Issue に集約して次の順に書き出す。
+
+1. spec がユーザーのレビューで確定したら書き出す。新規 Issue なら spec 全文を本文にして作成し（タイトル・テンプレートは AGENTS.md の Git ルールに従う）、既存 Issue なら spec 全文をコメントとして追加する
+2. plan が確定したら、同じ Issue に plan 全文をコメントとして追加する
+3. 書き出し後に spec / plan を改訂した場合、新規投稿せず、書き出し済みの本文・コメントを改訂後の全文で更新する
 
 ### Plan Execution
 
