@@ -7,7 +7,7 @@
 #
 # Default environment: production.
 # Region defaults are derived from environment to match workflow-config.yaml
-# in panicboat/platform (production -> ap-northeast-1, develop -> us-east-1).
+# in panicboat/platform (production -> ap-northeast-1, develop -> ap-northeast-1).
 # For environments not listed below, region must be passed explicitly as 2nd arg.
 #
 # MUST be sourced (not executed) so that AWS_* env vars persist in the
@@ -37,7 +37,7 @@ _env="${1:-production}"
 # first (a direct assume from the default identity gets AccessDenied).
 case "${_env}" in
   production) _region="${2:-ap-northeast-1}"; _account_id="337169763788" ;;
-  develop)    _region="${2:-us-east-1}";      _account_id="270242382571" ;;
+  develop)    _region="${2:-ap-northeast-1}"; _account_id="270242382571" ;;
   *)          _region="${2:-}";               _account_id="" ;;
 esac
 
