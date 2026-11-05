@@ -2,98 +2,75 @@
 
 ## Scope
 
-CLAUDE.md は Claude Code 固有のツール運用ルール（選択肢の提示・worktree・superpowers skill・agmsg skill の操作手順）を扱う。Priority を含む汎用的な開発規範（言語・命名・実装方針・Git 運用等）は AGENTS.md 側に一元化し、`@../AGENTS.md` で読み込む。ここでの重複記載はしない。
+Claude Code 固有のツール運用ルールだけを書く。汎用的な開発規範は AGENTS.md に書く。
+このファイルのルールは skill の既定動作・既定の提案より優先する。
 
 ## Choices
 
-ユーザーに選択肢を提示して選ばせるとき（本ファイルの各確認・skill が提示する選択肢を含む）は、必ず AskUserQuestion tool を使う。テキスト出力で選択肢を列挙して返答を待たない。
-本ファイルの選択肢にある「任意入力」は、AskUserQuestion が自動で付ける Other で代替し、option には含めない。
+ユーザーに選択肢から選ばせるとき（本ファイルの各確認・skill が提示する選択肢を含む）は、テキストで列挙せず AskUserQuestion tool を使う。
 
 ## Workflow
 
-対象が git リポジトリでない場合、以下の確認は不要（worktree・ブランチという概念自体が成立しないため）。
-
-ファイルへの書き込み（docs・plan・コードを問わず）を行う前に、以下のいずれかを選択するようユーザーに確認する。brainstorming など会話のみで完結する段階では確認不要。
+git リポジトリ内のファイル（docs・plan を含む）に書き込む前に、進め方をユーザーに選ばせる。git リポジトリでなければ確認しない。
 
 1. worktree を使って進める
 2. worktree を使わず新規ブランチを作成して進める
-3. このブランチ（`<現在のブランチ名>`）で進める ※選択肢を提示する際は実際のブランチ名を表示すること
-4. 任意入力（上記以外の方法をユーザーが指定）
+3. 現在のブランチ（実際のブランチ名を表示する）で進める
 
-例外: 実装 plan 実行のために dispatch された実装担当（task brief 等の明示的な作業指示に従い、作業対象の worktree/branch が既に確定した状態で単一タスクを実装する場合）は、この確認を行わず確定済みのブランチで in-place に作業する。ブランチ・worktree・実行方式を問い直さない。
+例外: 作業対象の worktree / ブランチを指定されて dispatch された実装担当は、確認せずそのブランチで作業する。実行方式も問い直さない。
 
 ## Superpowers
 
-superpowers 系 skill を利用する際の運用ルール。
-
 ### Artifacts
 
-skill が生成する spec / plan について、Commit と Issue の 2 点を作業開始時に一度確認する（Workflow の branch / worktree 確認と同じタイミングでよい）。
-**skill 側の `save and commit` および既定の保存先より本ルールを優先する。**
+skill が生成する spec / plan の扱いを、Commit と Issue の 2 点について Workflow の確認と同時に選ばせる。
 
 #### Commit
 
 1. commit する: skill 既定の保存先に従う
-2. commit しない: `.superpowers/` 以下に保存し、`/.superpowers/` を `.git/info/exclude` に追加する（skill 既定の保存先は commit を前提としがちなため、非管理の成果物と混在させない）
+2. commit しない: `.superpowers/` 以下に保存し、`/.superpowers/` を `.git/info/exclude` に追加する
 
 #### Issue
-
-Commit の選択結果に関わらず、作業対象リポジトリの Issue に書き出すかを確認する。
 
 1. 新規 Issue を作成して書き出す
 2. 既存 Issue に書き出す（Issue 番号をユーザーが指定）
 3. 書き出さない
 
-会話・ブランチ名・PR 本文から対象 Issue が 1 件に定まる場合は、2 を「既存 Issue #<番号> に書き出す」と番号を埋めて提示し、番号を聞き直さない。
+会話・ブランチ名・PR 本文から対象 Issue が 1 件に定まる場合は、2 を「既存 Issue #<番号> に書き出す」と番号を埋めて提示する。
 
-1 or 2 を選んだ場合、spec / plan を 1 つの Issue に集約して次の順に書き出す。
+書き出す場合は、spec / plan を 1 つの Issue に次の順で書き出す。
 
-1. spec がユーザーのレビューで確定したら書き出す。新規 Issue なら spec 全文を本文にして作成し（タイトル・テンプレートは AGENTS.md の Git ルールに従う）、既存 Issue なら spec 全文をコメントとして追加する
+1. spec がユーザーのレビューで確定したら、新規 Issue なら spec 全文を本文にして作成し、既存 Issue なら spec 全文をコメントとして追加する
 2. plan が確定したら、同じ Issue に plan 全文をコメントとして追加する
-3. 書き出し後に spec / plan を改訂した場合、新規投稿せず、書き出し済みの本文・コメントを改訂後の全文で更新する
+3. 書き出し後に spec / plan を改訂したら、書き出し済みの本文・コメントを改訂後の全文で更新する
 
 ### Plan Execution
 
-実装 plan の実行を開始する前に、実行方式を以下から選択するようユーザーに確認する
-**skill 側の既定の提案より優先する**
+実装 plan の実行前に、実行方式をユーザーに選ばせる。
 
-1. codex-driven-development（実装を Codex に委譲してトークン使用量を分散。対応する multiplexer（herdr/Orca）のセッション内であることが前提）
+1. codex-driven-development（実装を Codex に委譲してトークン使用量を分散。herdr/Orca のセッション内が前提）
 2. subagent-driven-development（Claude subagent で実行）
 3. executing-plans（このセッションでインライン実行）
-4. 任意入力（上記以外の方法をユーザーが指定）
 
 ### codex-driven-development
 
-同一セッション内で複数 worktree に対して並行実行する場合、2 つ目以降の worktree にも Monitor tool で watch.sh を個別に起動する: `~/.agents/skills/agmsg/scripts/watch.sh <session_id に一意なサフィックスを付けたもの> <project_path> claude-code`
+同一セッション内で複数 worktree に並行実行する場合、2 つ目以降の worktree にも Monitor tool で watch.sh を個別に起動する: `~/.agents/skills/agmsg/scripts/watch.sh <session_id に一意なサフィックスを付けたもの> <project_path> claude-code`
 
 ## agmsg
 
-fujibee/agmsg 純正 skill（`agmsg:agmsg`）を利用する際の運用ルール。カスタム skill（`agmsg-teams-cleanup` 等）には適用しない。
+fujibee/agmsg 純正 skill（`agmsg:agmsg`）に適用する。カスタム skill（`agmsg-teams-cleanup` 等）には適用しない。
 
 ### Team Selection
 
-セッション内で初めて fujibee/agmsg 純正 skill を利用する前に、team の扱いを以下から選択するようユーザーに確認する
-**skill 側の default flow より本ルールを優先する**
+セッションで初めて agmsg を使う前に、team の扱いをユーザーに選ばせる。選択肢の提示前にコマンドを実行しない。
 
-1. 新規 team を作成する（team 名と agent 名を指定）
-2. 既存 team に join する
-3. 現在登録済みの identity のまま使う
-4. 任意入力（上記以外の方法をユーザーが指定）
-
-事前取得は選択に必要な最小限に留める。3 択の提示だけなら追加コマンドを走らせない。選択後の分岐:
-
-- 1 が選ばれた場合: 追加取得なし（team 名と agent 名を user が指定するだけ）
-- 2 が選ばれた場合: このタイミングで `~/.agents/skills/agmsg/scripts/whoami.sh "$(pwd)"` を実行して `available_teams` を提示し team を選ばせる。選ばれた team について `~/.agents/skills/agmsg/scripts/team.sh <team>` を実行し、参加 agent 名と衝突しない agent 名を決めさせる
-- 3 が選ばれた場合: `~/.agents/skills/agmsg/scripts/whoami.sh "$(pwd)"` の出力を提示する
-
-確認が完了するまで fujibee/agmsg 純正 skill の team join・message 送信を行わない。
+1. 新規 team を作成する: team 名と agent 名をユーザーが指定する
+2. 既存 team に join する: `~/.agents/skills/agmsg/scripts/whoami.sh "$(pwd)"` の `available_teams` から team を選ばせ、`~/.agents/skills/agmsg/scripts/team.sh <team>` の参加 agent 名と衝突しない agent 名を決めさせる
+3. 現在登録済みの identity のまま使う: `~/.agents/skills/agmsg/scripts/whoami.sh "$(pwd)"` の出力を提示する
 
 ### Delivery Mode
 
-Team Selection で 1 or 2（`join.sh` を実行する経路）を選んだあとは、delivery mode の選択をユーザーに聞かず `monitor` に設定する。
-**skill 側の mode 選択プロンプトより本ルールを優先する**
+Team Selection で 1 または 2 を選んだら、delivery mode をユーザーに聞かず `monitor` に設定する。
 
-1. `~/.agents/skills/agmsg/scripts/delivery.sh set monitor <cli-type> "$(pwd)"` を実行する（`<cli-type>` は Claude Code なら `claude-code`、Codex なら `codex`）
-2. 標準出力の指示に従う
-   - Claude Code: `AGMSG-DIRECTIVE` ブロックに書かれた command で Monitor tool を invoke する（現 session で受信を開始するため。無視すると次回 session 起動まで受信が始まらない）
-   - Codex: bridge 反映のため Codex session を再起動する（shim・PATH は準備済み前提）
+1. `~/.agents/skills/agmsg/scripts/delivery.sh set monitor claude-code "$(pwd)"` を実行する
+2. 出力の `AGMSG-DIRECTIVE` ブロックに書かれた command で Monitor tool を invoke する
