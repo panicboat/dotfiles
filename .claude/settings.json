@@ -3,6 +3,7 @@
   "effortLevel": "xhigh",
   "enabledPlugins": {
     "agmsg@fujibee-agmsg": true,
+    "claude-security@claude-plugins-official": true,
     "codex@openai-codex": true,
     "compact-plus@compact-plus": true,
     "ruby-lsp@claude-plugins-official": true,
