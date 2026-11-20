@@ -2,8 +2,8 @@
 
 ## Intent
 
-`codex-driven-development` skill（`.claude/skills/codex-driven-development/`）を、実装役 CLI を差し替え可能な `delegated-development` skill に置き換える。
-実装役は Codex（`codex exec`）と Antigravity CLI（`agy -p`）の 2 つを最初から扱い、どちらも「非対話モードで 1 ターン実行し、終了したら結果を読む」同じ形で駆動する。
+`codex-driven-development` skill（`.claude/skills/codex-driven-development/`）を、実装役 CLI を adapter で差し替えられる `delegated-development` skill に置き換える。
+実装役 CLI は「非対話モードで 1 ターン実行し、終了したら結果を読む」形で駆動する。最初に実装する adapter は Codex（`codex exec`）だけで、ほかの CLI は adapter を足して追加する。
 
 現行 skill の負担はどちらも agmsg 由来である。
 
@@ -16,13 +16,13 @@
 
 - `codex-shim.sh`・agmsg・multiplexer（herdr/Orca）に依存せずに、SDD の implementer を外部 CLI に委譲できる
 - ユーザーも skill の手順も、project path を登録・解除しない（CLI は作業ディレクトリで起動するだけ）
-- 実装役 CLI ごとの差分を adapter 表 1 か所に閉じ、Codex と agy を同じ手順で扱う
+- 実装役 CLI ごとの差分を `implementer-adapters.md` 1 か所に閉じ、CLI の追加を adapter の追加だけで済ませる
 - 現行 skill の運用知見（Batching Strategy、Dispatch 前チェック、環境不備を implementer に埋めさせない規約、BLOCKED の扱い）を引き継ぐ
 
 ## Non-Goals
 
+- Codex 以外の adapter の実装（構造だけ用意する。追加条件は Adding an Adapter 参照）
 - implementer の作業画面をリアルタイムで見る・途中で介入する機能
-- gemini CLI 対応（未インストール。adapter 表に行を足せば追加できる構造にだけしておく）
 - 複数 implementer の並行実行（SDD どおり 1 度に 1 implementer）
 - implementer の model 指定（`.claude/skills/codex-driven-development/SKILL.md` の Substitutions「既定モデル」を維持。deprecated model の対話ダイアログで無人実行が止まるリスクを避ける）
 - agmsg 自体のアンインストールや CLAUDE.md の `## agmsg` 節の変更（agmsg は他用途で残る）
@@ -31,6 +31,7 @@
 
 - 実装役の起動や設定のために、shell profile・PATH・agmsg の team / identity といった skill 外の状態をユーザーに用意させる
 - 打ち切り線の無い待機（implementer がハングしたとき controller が永久に待つ）
+- 利用規約が第三者ツールからの起動を禁じている CLI を adapter にする（Adding an Adapter 参照）
 - Codex Claude Code plugin（`codex-companion.mjs`）経由での呼び出し（Approaches 参照。worktree で commit できない）
 
 ## Constraints
@@ -40,11 +41,8 @@
 - VERIFIED: `codex exec --json -o <file> "<prompt>" </dev/null` は stdout の JSONL に `{"type":"thread.started","thread_id":"<uuid>"}` を出し、`-o` のファイルに最終メッセージを書く。git worktree 内で `git commit -s` まで完了した（codex-cli 0.169.0）
 - VERIFIED: `codex exec resume <thread_id> -o <file> "<prompt>" </dev/null` は前ターンの文脈を保持して応答した
 - VERIFIED: `codex-companion.mjs task --write` は sandbox を `workspace-write` に固定し（`scripts/codex-companion.mjs:491`）、worktree 内の `git add` が `.../.git/worktrees/<name>/index.lock: Operation not permitted` で失敗した。`~/.codex/config.toml` の `sandbox_mode = "danger-full-access"` は上書きされる
-- VERIFIED: `agy -p "<prompt>" --output-format json --print-timeout <dur>` は `{"conversation_id","status":"SUCCESS","response",...}` を stdout に出す。git worktree 内で `git commit -s` まで完了した
-- VERIFIED: `agy -p "<prompt>" --conversation <id> --output-format json` は前ターンの文脈を保持して応答した
-- VERIFIED: agy が許可確認なしでファイル書き込み・commit したのは `~/.gemini/antigravity-cli/settings.json`（dotfiles 管理）の `"toolPermission": "always-proceed"` による。Codex も `~/.codex/config.toml` の `approval_policy = "never"`・`sandbox_mode = "danger-full-access"` に依存する。skill はこれらのフラグを CLI 引数で上書きせず、ユーザー設定に任せる
+- VERIFIED: Codex が許可確認なしで書き込み・commit できるのは `~/.codex/config.toml` の `approval_policy = "never"`・`sandbox_mode = "danger-full-access"` による。skill はこれらを CLI 引数で上書きせず、ユーザー設定に任せる
 - VERIFIED: この Mac には `timeout`/`gtimeout` が無く、`/usr/bin/perl` はある
-- VERIFIED: `agy -p --print-timeout 10s` が時間切れになると終了コード 3 で終了し、stdout に `{"conversation_id":...,"status":"ERROR","finished_reason":"print_timeout",...}` を出す。実行中だった子プロセス（`sleep 60`）も agy が終了させた
 - VERIFIED: `perl -e 'alarm shift; exec @ARGV' 40 codex exec ...` は終了コード 142 で codex を止めるが、codex が起動したシェルコマンド（`sleep 113`）は孤児として残った。`setpgrp` してプロセスグループを kill しても残った（codex はツールコマンドを別プロセスグループで起動する）。`pgrep -P` で子孫を再帰的に列挙して TERM → 2 秒後 KILL する perl ラッパーでは孤児は残らなかった
 - `~/.claude/CLAUDE.md` は dotfiles の `.claude/CLAUDE.md` への symlink であり、変更対象はリポジトリ側の 1 ファイルだけ
 - REASONED: 非対話モードは trust / hooks review / update といった起動時ダイアログを出さない（上記の検証で一度も出なかった）。出た場合は CLI がエラー終了するか、打ち切り線で止まる
@@ -54,38 +52,23 @@
 
 ### Considered
 
-1. **1 skill + implementer adapter 表（採用）**
-   進め方は 1 つの SKILL.md、CLI ごとの差（起動・再開・結果の取り出し・打ち切り）は `implementer-adapters.md` の表に置く。現行の `multiplexer-adapters.md` と同じ構造。
-   本文の重複がなく、gemini 追加は表に 1 行で済む。代わりに skill 名を変える必要がある。
-2. **CLI ごとに skill を分ける**（`codex-driven-development` 書き直し + `agy-driven-development` 新設）
-   各 skill は自分の CLI だけ書けばよいが、本文がほぼ同一のまま 2 か所で保守することになる。不採用。
-3. **Codex は Codex plugin（`codex-companion.mjs task --write`）経由**
+1. **1 skill + implementer adapter（採用）**
+   進め方は 1 つの SKILL.md、CLI ごとの差（起動・再開・結果の取り出し・打ち切り）は `implementer-adapters.md` に置く。現行の `multiplexer-adapters.md` と同じ構造。
+   CLI を足すときに本文を触らずに済む。代わりに skill 名を変える必要がある。
+2. **CLI ごとに skill を分ける**
+   各 skill は自分の CLI だけ書けばよいが、本文がほぼ同一のまま CLI の数だけ保守することになる。不採用。
+3. **Codex だけを前提に adapter を持たない**
+   間接参照が無くなるが、ユーザーは Codex 以外の CLI も使う予定で、追加のたびに本文を書き換えることになる。不採用。
+4. **Codex は Codex plugin（`codex-companion.mjs task --write`）経由**
    job 管理・`--resume-last` を plugin が持つが、sandbox が `workspace-write` 固定で worktree 内で commit できない（Constraints 参照）。Claude が代理 commit すると TDD の段階 commit が失われ、sandbox 内で動かない検証も出る。不採用。`codex:codex-rescue` subagent 経由も同じ plugin を通るうえ、subagent の Bash は前景 10 分上限のため長い実装で打ち切られる。
-4. **agy を agmsg（turn delivery）で駆動**
-   agmsg は project path 単位の identity とプロジェクト内ルールファイル（`.agent/rules/agmsg.md`）を前提とし、解消したい負担がそのまま残る。不採用。
-5. **agy を ACP（`agy acp`）で駆動**
-   stdio プロトコルのクライアントを自作する必要があり過剰。不採用。
 
 ### Decided by the user
 
-- 構成は Approach 1
-- `bound` で打ち切られたら同じセッションに 1 回だけ自動で続行を依頼し、2 回目の打ち切りでユーザーに報告する
+- 構成は Approach 1。adapter は Codex 以外も使う前提で残す
 - skill 名は `delegated-development`
 - Codex は `codex exec` を直接使う（Codex plugin は使わない）
-- agy は個人 Google アカウント（AI Pro/Ultra）の OAuth ログインのまま実装役に含める。下記 Terms Risk を承知の上での判断
-
-## Terms Risk
-
-agy を Claude Code から無人で反復起動する構成は、Antigravity の規約上グレーである（2026-11-20 調査）。
-
-- [Antigravity Terms](https://antigravity.google/terms) Section 6 は "using third party software, tools, or services to access the Service" と "using the Service in connection with products not provided by us" を違反とし、Antigravity / Gemini CLI アカウントの停止・解約事由としている
-- [Gemini CLI FAQ](https://geminicli.com/docs/resources/faq/) は Claude Code を名指しし、第三者ツールによる OAuth 流用を "direct violation" とし、第三者コーディングエージェントには API key を推奨している
-- [headless docs](https://antigravity.google/docs/cli/headless) は `-p`・`--output-format json`・`--conversation` をスクリプト / CI 用途として案内している。第三者 agent からの起動について Google の公式見解は見つからなかった
-- 2026-02 以降の AI Pro/Ultra アカウント大量停止は OAuth を抽出・中継する第三者ハーネス（OpenClaw 等）が対象で、未改変の `agy` を subprocess として起動した事例は見つからなかった
-- Section 5 により、Telemetry が有効な間は Interactions が製品改善に使われ、Google の従業員・委託先がレビューしうる。CLI の Telemetry 設定は `settings.json` ではなくアカウント側に保存される
-- Section 4 により、AI Agent の行為の責任は利用者が単独で負う。`always-proceed` は docs 上 "highest risk"
-
-skill は agy adapter の説明にこのリスクと参照先を 1 行で載せ、Prerequisites で agy を選んだときにユーザーへ表示する。
+- `bound` で打ち切られたら同じセッションに 1 回だけ自動で続行を依頼し、2 回目の打ち切りでユーザーに報告する
+- Antigravity CLI（`agy`）は adapter にしない（Adding an Adapter 参照）
 
 ## Design
 
@@ -105,11 +88,9 @@ flowchart LR
   subgraph proposed["delegated-development"]
     C2[Claude controller] -->|Bash run_in_background<br/>adapter run / resume| A2{implementer-adapters}
     A2 --> X2[codex exec]
-    A2 --> Y2[agy -p]
+    A2 -.->|将来の adapter| Y2[other CLI]
     X2 -->|プロセス終了通知| C2
-    Y2 -->|プロセス終了通知| C2
     X2 -->|write| F2[(task-N-report.md)]
-    Y2 -->|write| F2
     F2 -->|STATUS: を読む| C2
   end
 ```
@@ -122,7 +103,7 @@ flowchart LR
 sequenceDiagram
   participant C as Claude controller
   participant H as Bash run_in_background
-  participant I as implementer CLI<br/>(codex exec / agy -p)
+  participant I as implementer CLI<br/>(codex exec)
   participant F as files<br/>(dispatch / report / out)
 
   C->>F: task-N-dispatch.md を書く
@@ -141,44 +122,67 @@ sequenceDiagram
     I->>F: 対応・commit → 新しい report を書く
     I-->>H: exit
     H-->>C: 終了通知
-  else 打ち切り / STATUS: 無し
+  else 1 回目の打ち切り
+    C->>H: bound 付き resume（到達点を確かめて続行せよ）
+  else 2 回目の打ち切り / STATUS: 無し
     C->>C: git log / out を確認してユーザーに報告
   end
 ```
 
 ### Files
 
-| パス | 内容 |
-|---|---|
-| `.claude/skills/delegated-development/SKILL.md` | 進め方（Prerequisites / Setup / Substitutions / Batching Strategy / Dispatch / Await / Redispatch / Abort / Failure Modes / Red Flags） |
-| `.claude/skills/delegated-development/implementer-adapters.md` | CLI ごとの `detect` / `run` / `resume` / `session_id` / `bound` の表 |
-| `.claude/skills/delegated-development/bound.pl` | 打ち切りラッパー。`bound.pl <seconds> <argv...>` で argv を子として起動し、時間切れで子孫プロセスを `pgrep -P` で再帰列挙して TERM → 2 秒後 KILL し、終了コード 142 で終わる。時間内に終われば子の終了コードを返す |
-| `.claude/skills/delegated-development/dispatch-prompt.md` | 現行 `codex-dispatch-prompt.md` から multiplexer・agmsg 依存を除いた汎用テンプレート |
-| `.claude/skills/codex-driven-development/` | 削除 |
-| `.claude/CLAUDE.md` | `### Plan Execution` の選択肢 1 を `delegated-development` に書き換え、`### codex-driven-development` 節（watch.sh の並行 worktree 手順）を削除 |
+```
+.claude/skills/delegated-development/
+├── SKILL.md                 進め方（Prerequisites / Setup / Substitutions / Batching Strategy /
+│                            Dispatch / Await / Redispatch / Abort / Failure Modes / Red Flags）
+├── implementer-adapters.md  adapter 契約と、CLI ごとの操作の実装（最初は codex のみ）
+├── dispatch-prompt.md       現行 codex-dispatch-prompt.md から multiplexer・agmsg 依存を除いた汎用テンプレート
+└── bound.pl                 打ち切りラッパー
+.claude/skills/codex-driven-development/   削除
+.claude/CLAUDE.md                          Plan Execution の選択肢 1 を delegated-development に書き換え、
+                                           ### codex-driven-development 節（watch.sh の並行 worktree 手順）を削除
+```
+
+`bound.pl <seconds> <argv...>` は argv を子として起動し、時間切れで子孫プロセスを `pgrep -P` で再帰列挙して TERM → 2 秒後 KILL し、終了コード 142 で終わる。時間内に終われば子の終了コードを返す。
 
 `~/.claude/skills/` 側の symlink（ansible 管理外。`~/.claude/skills/codex-driven-development/` は 3 ファイルの個別 symlink）は、リポジトリ外の作業として plan の最後に置く: `~/.claude/skills/delegated-development/` を作って 4 ファイルを個別 symlink し、`~/.claude/skills/codex-driven-development/` を削除する。
 
-### Adapter contract
+### Adapter Contract
 
 `implementer-adapters.md` は CLI ごとに次の操作を定義する。SKILL.md は操作名だけを参照する。
 
-| 操作 | 意味 | codex | agy |
-|---|---|---|---|
-| `detect()` | 使えるか | `command -v codex` | `command -v agy` |
-| `run(prompt, out)` | 新規セッションで 1 ターン実行 | `codex exec --json -o "$OUT.last" "$PROMPT" </dev/null >"$OUT.jsonl"` | `agy -p "$PROMPT" --output-format json --print-timeout "${WAIT_BUDGET}s" </dev/null >"$OUT.json"` |
-| `session_id(out)` | 再開用 ID の取り出し | `$OUT.jsonl` の `thread.started` 行の `thread_id` | `$OUT.json` の `conversation_id` |
-| `resume(id, prompt, out)` | 同じセッションで 1 ターン実行 | `codex exec resume "$ID" --json -o "$OUT.last" "$PROMPT" </dev/null >"$OUT.jsonl"` | `agy -p "$PROMPT" --conversation "$ID" --output-format json --print-timeout "${WAIT_BUDGET}s" </dev/null >"$OUT.json"` |
-| `bound` | 打ち切り線の実装 | `bound.pl "$WAIT_BUDGET" codex exec ...`（打ち切りは終了コード 142） | `--print-timeout`（打ち切りは終了コード 3・`finished_reason` が `print_timeout`） |
-| `succeeded(out)` | CLI としての成否 | 終了コード 0 | 終了コード 0 かつ `status` が `SUCCESS` |
+| 操作 | 意味 | codex |
+|---|---|---|
+| `detect()` | 使えるか | `command -v codex` |
+| `run(prompt, out)` | 新規セッションで 1 ターン実行 | `codex exec --json -o "$OUT.last" "$PROMPT" </dev/null >"$OUT.jsonl"` |
+| `session_id(out)` | 再開用 ID の取り出し | `$OUT.jsonl` の `thread.started` 行の `thread_id` |
+| `resume(id, prompt, out)` | 同じセッションで 1 ターン実行 | `codex exec resume "$ID" --json -o "$OUT.last" "$PROMPT" </dev/null >"$OUT.jsonl"` |
+| `bound` | 打ち切り線の実装 | `bound.pl "$WAIT_BUDGET" codex exec ...` |
+| `timed_out(out)` | 打ち切りで終了したか | 終了コード 142 |
+| `succeeded(out)` | CLI としての成否 | 終了コード 0 |
+| `last_message(out)` | 最終応答（report が無いときの到達点確認用） | `$OUT.last` |
 
 どの操作も `cd "$PROJECT"` した shell で実行する（`PROJECT` は作業対象ディレクトリの絶対パス。登録先ではなく cd 先としてだけ使う）。
 `WAIT_BUDGET` は 1800 秒。
 
+### Adding an Adapter
+
+CLI を adapter に加える前に、次をすべて満たすことを確かめ、`implementer-adapters.md` に確認結果と参照 URL を書く。
+
+1. 利用規約が、別の AI エージェント（Claude Code）から非対話モードで無人・反復起動することを禁じていない
+2. 非対話モードで 1 ターン実行し、終了コードで成否が分かる
+3. 再開用のセッション ID を機械的に取り出せ、その ID で文脈を保ったまま再開できる
+4. worktree 内で `git commit -s` まで完了できる
+5. 打ち切りで子孫プロセスが残らない（CLI 自身の timeout か `bound.pl`）
+
+Antigravity CLI（`agy` 1.5.12）は 2〜5 を満たすことを確認した（`-p --output-format json` の `conversation_id`、`--conversation` での再開、worktree での commit、`--print-timeout` 時の子プロセス終了と終了コード 3）。
+ただし 1 を満たさないため adapter にしない。
+[Antigravity Terms](https://antigravity.google/terms) Section 6 が "using third party software, tools, or services to access the Service" と "using the Service in connection with products not provided by us" を停止・解約事由とし、[Gemini CLI FAQ](https://geminicli.com/docs/resources/faq/) が Claude Code を名指しして第三者ツールからの OAuth 利用を "direct violation" としている（2026-11-20 調査）。
+
 ### Prerequisites
 
-1. adapter 表の `detect()` で使える CLI を列挙する。0 個なら報告して SDD を提案する
-2. 2 個以上なら AskUserQuestion で今回の run の implementer を選ばせる（run 全体で 1 つ。タスクごとには変えない）。agy の選択肢には Terms Risk の要約を description に入れる
+1. `implementer-adapters.md` の各 adapter の `detect()` で使える CLI を列挙する。0 個なら報告して SDD を提案する
+2. 2 個以上なら AskUserQuestion で今回の run の implementer を選ばせる（run 全体で 1 つ。タスクごとには変えない）
 
 ### Setup
 
@@ -208,7 +212,7 @@ agmsg の join / delivery 設定、Monitor 起動、`.codex/hooks.json` の excl
 
 1. background task の終了通知を待つ。待つ間は他の作業をしてよい。`bound` があるので通知は `WAIT_BUDGET` 内に必ず届く
 2. 終了したら `session_id(out)` を取り出して記録する（Redispatch 用）
-3. `bound` で打ち切られていたら、そのタスクで初めての打ち切りなら記録した session id で `bound` 付きの `resume` を 1 回だけ起動する。prompt は「実行が時間切れで中断された。`git log`・`git status` と report file で到達点を確かめて作業を続け、report file を書いて終了せよ」。起動したら Await の 1 に戻る。同じタスクで 2 回目の打ち切りなら Failure Modes に従う
+3. `timed_out(out)` が真なら、そのタスクで初めての打ち切りなら記録した session id で `bound` 付きの `resume` を 1 回だけ起動する。prompt は「実行が時間切れで中断された。`git log`・`git status` と report file で到達点を確かめて作業を続け、report file を書いて終了せよ」。起動したら Await の 1 に戻る。同じタスクで 2 回目の打ち切りなら Failure Modes に従う
 4. report file の 1 行目 `STATUS:` を読む。`STATUS:` が無い・`succeeded` が偽の場合は Failure Modes に従う
 5. STATUS は SDD の Handling Implementer Status に従う
 
@@ -239,8 +243,8 @@ run を中断するときは、実行中の background task があれば TaskSto
 | 症状 | 一手 |
 |---|---|
 | `detect()` が全て偽 | 報告して SDD を提案する |
-| 終了したが report に `STATUS:` が無い | `git log $BASE..HEAD`・`git status`・`$OUT.last` / `$OUT.json` の `response` で到達点を確かめてユーザーに報告する。作業が commit 済みのことがあるので作り直さない |
-| 同じタスクで 2 回目の `bound` 打ち切り（codex は終了コード 142、agy は `finished_reason` が `print_timeout`） | 同上 |
+| 終了したが report に `STATUS:` が無い | `git log $BASE..HEAD`・`git status`・`last_message(out)` で到達点を確かめてユーザーに報告する。作業が commit 済みのことがあるので作り直さない |
+| 同じタスクで 2 回目の打ち切り | 同上 |
 | `succeeded` が偽で即終了 | stdout / stderr をユーザーに見せる（認証切れ・CLI 更新等） |
 | `session_id` が取れない | Redispatch できないので、fix は新規 `run` で dispatch file 全文と findings を渡して行う |
 | 環境不備で BLOCKED | 現行どおり controller が validation を差し替える。implementer に install させない |
@@ -258,7 +262,7 @@ run を中断するときは、実行中の background task があれば TaskSto
 
 ## Left to the Builder
 
-- `implementer-adapters.md` の表のレイアウトと、`session_id` を取り出す具体コマンド（`jq` / `grep`）
+- `implementer-adapters.md` のレイアウトと、`session_id` を取り出す具体コマンド（`jq` / `grep`）
 - Batching Strategy の本文の書き直し（「pane」を「セッション」に読み替える範囲）
 - 現行 skill の Failure Modes のうち、上表に載っていない herdr / Orca / agmsg 固有の行の削除判断
-- skill の検証方法（dotfiles の skill にテストコードは無い。小さなダミー plan を Codex と agy それぞれで 1 タスク dispatch → resume まで通す手順を plan に入れる）
+- skill の検証方法（dotfiles の skill にテストコードは無い。`bound.pl` は打ち切り・孤児が残らないこと・子の終了コードの伝搬をシェルで検証し、skill 全体は小さなダミー plan を Codex で 1 タスク dispatch → resume まで通す手順を plan に入れる）
