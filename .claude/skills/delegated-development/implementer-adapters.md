@@ -43,5 +43,7 @@ CLI 1 つにつき 1 行。
 | codex | 0.169.0 | 2026-11-20 | 採用（公式 docs がスクリプト / CI 用途を案内） | https://developers.openai.com/codex/noninteractive |
 | agy | 1.5.12 | 2026-11-20 | 不採用（Terms Section 6: third party tools / products not provided by us） | https://antigravity.google/terms , https://geminicli.com/docs/resources/faq/ |
 
+codex adapter は `~/.codex/config.toml` の `approval_policy = "never"` と `sandbox_mode = "danger-full-access"` を前提とし、skill はこれらのフラグを渡さない（`workspace-write` では worktree 内の commit が `.git/worktrees/<name>/index.lock` で失敗する）。
+
 `agy` は条件 2〜5 を満たす（`-p --output-format json` の `conversation_id`、`--conversation` での再開、worktree での commit、`--print-timeout` 時の子プロセス終了と終了コード 3）が、条件 1 を満たさない。
 Antigravity Terms Section 6 が "using third party software, tools, or services to access the Service" と "using the Service in connection with products not provided by us" を停止・解約事由とし、Gemini CLI FAQ が Claude Code を名指しして第三者ツールからの OAuth 利用を "direct violation" としている。

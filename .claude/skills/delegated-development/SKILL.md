@@ -9,8 +9,8 @@ superpowers:subagent-driven-development（以下 SDD）の実行構造を維持�
 implementer は CLI の非対話モードで 1 ターンずつ起動し、プロセス終了を完了信号にする。
 CLI ごとの差（起動・再開・結果の取り出し・打ち切り）は `adapters/<cli>.sh` に閉じており、本 skill は adapter の subcommand だけを呼ぶ。adapter の契約は `implementer-adapters.md` にある。
 
-以下、`SKILL_DIR` は Skill tool がこの skill の読み込み時に表示する base directory の絶対パスを指す。
-Bash の変数は呼び出しを跨いで残らないため、コマンドには `SKILL_DIR`・`PROJECT`・`OUT` 等の値を絶対パスで埋めて書く。
+以下、`<SKILL_DIR>` は Skill tool がこの skill の読み込み時に表示する base directory の絶対パスを指す。
+Bash の変数は呼び出しを跨いで残らないため、コマンド中の `<SKILL_DIR>`・`<PROJECT>`・`<OUT>`・`<BASE>` は変数参照にせず、値（パスは絶対パス、`BASE` は commit hash）に置き換えて書く。
 adapter に渡す prompt は英単語で始める（adapter は prompt を位置引数で CLI に渡すため、`-` で始まると CLI のフラグとして解釈される）。
 
 ## Prerequisites
@@ -20,7 +20,7 @@ adapter に渡す prompt は英単語で始める（adapter は prompt を位置
 1. 使える CLI を列挙する:
 
    ```sh
-   for a in "$SKILL_DIR"/adapters/*.sh; do "$a" detect && basename "$a" .sh; done
+   for a in "<SKILL_DIR>"/adapters/*.sh; do "$a" detect && basename "$a" .sh; done
    ```
 
 2. 0 個なら、どの CLI も使えないことを報告して SDD での実行を提案し、終了する
@@ -87,7 +87,7 @@ fresh-per-task を強制すると、機械的な rename / config 更新の連続
 4. 次を Bash `run_in_background` で起動し、返ってきた background task id を記録する:
 
    ```sh
-   cd "$PROJECT" && "$SKILL_DIR/adapters/<cli>.sh" run "$OUT" "Read <task-N-dispatch.md の絶対パス> and follow it exactly."
+   cd "<PROJECT>" && "<SKILL_DIR>/adapters/<cli>.sh" run "<OUT>" "Read <task-N-dispatch.md の絶対パス> and follow it exactly."
    ```
 
 ## Await
@@ -96,9 +96,9 @@ fresh-per-task を強制すると、機械的な rename / config 更新の連続
 
 1. background task の終了通知を待つ。待つ間は他の作業をしてよい。adapter は `WAIT_BUDGET`（既定 1800 秒）で必ず終わるため、通知はその時間内に届く
 2. 通知から終了コードを読む。status が `completed` なら 0、それ以外（`failed`）なら summary の `exit code N` の N が終了コード
-3. 終了したのが `run` なら `"$SKILL_DIR/adapters/<cli>.sh" session_id "$OUT"` で session id を取り出し、ledger の記録を更新する（`resume` は同じ session id を使い続ける）。取れなければ Failure Modes の「`session_id` が取れない」に従う
+3. 終了したのが `run` なら `"<SKILL_DIR>/adapters/<cli>.sh" session_id "<OUT>"` で session id を取り出し、ledger の記録を更新する（`resume` は同じ session id を使い続ける）。取れなければ Failure Modes の「`session_id` が取れない」に従う
 4. 終了コードが 142（打ち切り）なら:
-   - そのタスクで 1 回目の打ち切りなら、Redispatch の 1・3・4（resume）・5 を実行する（2 の追記はしない）。prompt は `The previous turn was stopped by a timeout. Check git log, git status, and <rename 後の report の絶対パス> (if it exists) to find where you stopped, continue the task, write the report file, and exit.` にする
+   - そのタスクで 1 回目の打ち切りなら、Redispatch の 1・3・4（resume）・5 を実行する（2 の追記はしない）。prompt は `The previous turn was stopped by a timeout. Check git log, git status, and <rename 後の report の絶対パス> (if it exists) to find where you stopped, continue the task, write a new report file at <task-N-report.md の絶対パス> whose first line is the STATUS line, and exit.` にする
    - 同じタスクで 2 回目の打ち切りなら Failure Modes に従う
 5. 終了コードが 0 でも 142 でもないなら Failure Modes に従う
 6. 終了コードが 0 なら report file の 1 行目の `STATUS:` を読む。`STATUS:` が無ければ Failure Modes に従う
@@ -110,18 +110,18 @@ NEEDS_CONTEXT・BLOCKED への回答、追加 context、レビュー指摘の fi
 
 1. `K` を 1 増やす。`K` はタスクごとの起動番号で、Dispatch の `run` が 0、以後 `resume`・`run` の起動（Await 4 の打ち切り後の resume を含む）のたびに 1 増える
 2. `task-N-dispatch.md` 末尾に `## Redispatch K` 見出しを追記し、回答・追加 context・findings を書く（fix の内容要件は SDD の `references/fix-loop.md` に従う）
-3. report file があれば `task-N-report.round-<K-1>.md` に rename する。これで Await が読む `STATUS:` は今ラウンドの report のものだけになる
+3. report file があれば `task-N-report.round-<K-1>.md` に rename する。これで Await が読む `STATUS:` は今ラウンドの report のものだけになる。implementer は rename 後の report file を追記せず、新しい report file を書く（SDD `references/fix-loop.md` の「同じ report file への追記」はここで置き換える）
 4. `OUT` を `task-N-round-K`（絶対パス）にし、次のどちらかを Bash `run_in_background` で起動して background task id を記録する。`OUT` は起動のたびに新しい値にする（再利用すると前ラウンドの `<out>.last` が残る）
    - 既定（fix loop の round 1-3 を含む）: 同じセッションへの `resume`
 
      ```sh
-     cd "$PROJECT" && "$SKILL_DIR/adapters/<cli>.sh" resume "<session id>" "$OUT" "Read the '## Redispatch <K>' section of <task-N-dispatch.md の絶対パス>, address it, write the report file, and exit."
+     cd "<PROJECT>" && "<SKILL_DIR>/adapters/<cli>.sh" resume "<session id>" "<OUT>" "Read the '## Redispatch <K>' section of <task-N-dispatch.md の絶対パス>, address it, write a new report file at <task-N-report.md の絶対パス> whose first line is the STATUS line, then exit."
      ```
 
    - SDD が上位モデルへの切り替えを指示する場合（`references/handling-reports.md` の BLOCKED 2・`references/fix-loop.md` の round 4-5）と、session id が無い場合: 新しいセッションの `run`。モデルは CLI の既定のまま。終了後の Await 3 で新しい session id に記録を更新し、以後の `resume` はそれを使う
 
      ```sh
-     cd "$PROJECT" && "$SKILL_DIR/adapters/<cli>.sh" run "$OUT" "Read <task-N-dispatch.md の絶対パス> and follow it exactly, including every Redispatch section. Earlier reports for this task: <task-N-report.round-*.md の絶対パス（スペース区切り）>. Address the open findings in the '## Redispatch <K>' section, write the report file, and exit."
+     cd "<PROJECT>" && "<SKILL_DIR>/adapters/<cli>.sh" run "<OUT>" "Read <task-N-dispatch.md の絶対パス> and follow it exactly, including every Redispatch section. Earlier reports for this task: <task-N-report.round-*.md の絶対パス（スペース区切り）>. Address the open findings in the '## Redispatch <K>' section, write a new report file at <task-N-report.md の絶対パス> whose first line is the STATUS line, then exit."
      ```
 
 5. Await を実行する
@@ -138,9 +138,9 @@ run を中断するときに実行する。完了条件: 実行中の background
 | 症状 | 一手 |
 |---|---|
 | すべての adapter の `detect` が非 0 | 報告して SDD を提案する |
-| 終了コード 0 だが report に `STATUS:` が無い | `git log $BASE..HEAD`・`git status`・`"$SKILL_DIR/adapters/<cli>.sh" last_message "$OUT"` で到達点を確かめてユーザーに報告する。作業が commit 済みのことがあるので作り直さない |
+| 終了コード 0 だが report に `STATUS:` が無い | `git log <BASE>..HEAD`・`git status`・`"<SKILL_DIR>/adapters/<cli>.sh" last_message "<OUT>"` で到達点を確かめてユーザーに報告する。作業が commit 済みのことがあるので作り直さない |
 | 同じタスクで 2 回目の打ち切り（終了コード 142） | 同上 |
-| 終了コードが 0 でも 142 でもない | background task の出力（stderr）と `$OUT.*` の末尾をユーザーに見せる（認証切れ・CLI 更新等） |
+| 終了コードが 0 でも 142 でもない | background task の出力（stderr）と `<OUT>.*` の末尾をユーザーに見せる（認証切れ・CLI 更新等） |
 | `session_id` が取れない | resume できないので、次の Redispatch は 4 の `run` で行う。Await 4 の打ち切りで session id が無ければ、2 回目の打ち切りと同じ一手をとる |
 | 環境不備で BLOCKED | controller が依存を整えるか validation を構造検証に差し替え（Dispatch 前チェック参照）、Redispatch で伝える。implementer に install / setup させない |
 

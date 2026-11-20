@@ -28,6 +28,7 @@ Read this file first — it is your requirements, with the exact values to use v
 - Change only what this task requires. No refactoring of surrounding code, no new dependencies.
 - **Do not fix environmental gaps yourself.** If a validation command needs a runtime the environment doesn't have (`bundle install` on a fresh worktree, `pnpm install`, missing binary), stop with STATUS: BLOCKED and let the controller rule on it. Never `bundle install` / `pnpm install` / add a package to make a check pass — those are decisions the controller owns.
 - Self-review your diff before reporting: spec compliance (nothing missing, nothing extra) and code quality.
+- Do not dispatch subagents or reviewers. Self-review means reading your own diff; the controller reviews your work after the report.
 
 ## Report
 
