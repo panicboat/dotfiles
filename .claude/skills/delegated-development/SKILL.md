@@ -44,7 +44,7 @@ SDD の以下の項目だけを置き換える。表にない項目はすべて 
 | implementer の返値による報告（`### 2. Handle the report`） | 終了通知を受けて report file の `STATUS:` 行を読む（Await 節） |
 | implementer の agent identity の記録（fix loop の round 1-3 で resume する相手） | `adapters/<cli>.sh session_id` で取り出した session id の記録 |
 | 質問回答・追加 context・fix の再依頼（re-dispatch・fix loop の resume） | `adapters/<cli>.sh resume` を Bash `run_in_background` で起動する（Redispatch 節） |
-| implementer への Model Selection | CLI の既定モデル。SDD が上位モデルへの切り替えを指示する箇所（`references/handling-reports.md` の BLOCKED 2・`references/fix-loop.md` の round 4-5）も、モデルを変えずに Redispatch で行う |
+| implementer への Model Selection | CLI の既定モデル。SDD が上位モデルへの切り替えを指示する箇所（`references/handling-reports.md` の BLOCKED 2・`references/fix-loop.md` の round 4-5）は、モデルを変えずに新しいセッションの `run` で行う（Redispatch 4） |
 
 ## Batching Strategy
 
@@ -95,26 +95,34 @@ fresh-per-task を強制すると、機械的な rename / config 更新の連続
 `run` / `resume` を起動するたびに実行する。完了条件: report file の `STATUS:` を読んで SDD の report 処理に渡したか、Failure Modes に進んだこと。
 
 1. background task の終了通知を待つ。待つ間は他の作業をしてよい。adapter は `WAIT_BUDGET`（既定 1800 秒）で必ず終わるため、通知はその時間内に届く
-2. 終了したのが `run` なら `"$SKILL_DIR/adapters/<cli>.sh" session_id "$OUT"` で session id を取り出し、ledger に記録する（`resume` は同じ session id を使い続ける）。取れなければ Failure Modes の「`session_id` が取れない」に従う
-3. 通知の終了コードが 142（打ち切り）なら:
-   - そのタスクで 1 回目の打ち切りなら、Redispatch の 1・3・4・5 を実行する（2 の追記はしない）。prompt は `The previous turn was stopped by a timeout. Check git log, git status, and <rename 後の report の絶対パス> (if it exists) to find where you stopped, continue the task, write the report file, and exit.` にする
+2. 通知から終了コードを読む。status が `completed` なら 0、それ以外（`failed`）なら summary の `exit code N` の N が終了コード
+3. 終了したのが `run` なら `"$SKILL_DIR/adapters/<cli>.sh" session_id "$OUT"` で session id を取り出し、ledger の記録を更新する（`resume` は同じ session id を使い続ける）。取れなければ Failure Modes の「`session_id` が取れない」に従う
+4. 終了コードが 142（打ち切り）なら:
+   - そのタスクで 1 回目の打ち切りなら、Redispatch の 1・3・4（resume）・5 を実行する（2 の追記はしない）。prompt は `The previous turn was stopped by a timeout. Check git log, git status, and <rename 後の report の絶対パス> (if it exists) to find where you stopped, continue the task, write the report file, and exit.` にする
    - 同じタスクで 2 回目の打ち切りなら Failure Modes に従う
-4. 終了コードが 0 でも 142 でもないなら Failure Modes に従う
-5. 終了コードが 0 なら report file の 1 行目の `STATUS:` を読む。`STATUS:` が無ければ Failure Modes に従う
-6. STATUS は SDD の `### 2. Handle the report` に従って処理する（DONE → review-package → task reviewer。それ以外 → `references/handling-reports.md`）。NEEDS_CONTEXT・BLOCKED への回答と task review の fix は Redispatch で送る
+5. 終了コードが 0 でも 142 でもないなら Failure Modes に従う
+6. 終了コードが 0 なら report file の 1 行目の `STATUS:` を読む。`STATUS:` が無ければ Failure Modes に従う
+7. STATUS は SDD の `### 2. Handle the report` に従って処理する（DONE → review-package → task reviewer。それ以外 → `references/handling-reports.md`）。NEEDS_CONTEXT・BLOCKED への回答と task review の fix は Redispatch で送る
 
 ## Redispatch
 
-NEEDS_CONTEXT・BLOCKED への回答、追加 context、レビュー指摘の fix を、記録した session id の同じセッションに送る。完了条件: Await が完了したこと。
+NEEDS_CONTEXT・BLOCKED への回答、追加 context、レビュー指摘の fix を implementer に送る。既定は記録した session id の同じセッションへの `resume` で、4 の条件に当たるときだけ新しいセッションの `run` にする。完了条件: Await が完了したこと。
 
-1. `K` を 1 増やす。`K` はタスクごとの起動番号で、Dispatch の `run` が 0、以後 `resume`（Await 3 の打ち切り後の resume を含む）のたびに 1 増える
+1. `K` を 1 増やす。`K` はタスクごとの起動番号で、Dispatch の `run` が 0、以後 `resume`・`run` の起動（Await 4 の打ち切り後の resume を含む）のたびに 1 増える
 2. `task-N-dispatch.md` 末尾に `## Redispatch K` 見出しを追記し、回答・追加 context・findings を書く（fix の内容要件は SDD の `references/fix-loop.md` に従う）
 3. report file があれば `task-N-report.round-<K-1>.md` に rename する。これで Await が読む `STATUS:` は今ラウンドの report のものだけになる
-4. `OUT` を `task-N-round-K`（絶対パス）にし、次を Bash `run_in_background` で起動して background task id を記録する。`OUT` は起動のたびに新しい値にする（再利用すると前ラウンドの `<out>.last` が残る）:
+4. `OUT` を `task-N-round-K`（絶対パス）にし、次のどちらかを Bash `run_in_background` で起動して background task id を記録する。`OUT` は起動のたびに新しい値にする（再利用すると前ラウンドの `<out>.last` が残る）
+   - 既定（fix loop の round 1-3 を含む）: 同じセッションへの `resume`
 
-   ```sh
-   cd "$PROJECT" && "$SKILL_DIR/adapters/<cli>.sh" resume "<session id>" "$OUT" "Read the '## Redispatch <K>' section of <task-N-dispatch.md の絶対パス>, address it, write the report file, and exit."
-   ```
+     ```sh
+     cd "$PROJECT" && "$SKILL_DIR/adapters/<cli>.sh" resume "<session id>" "$OUT" "Read the '## Redispatch <K>' section of <task-N-dispatch.md の絶対パス>, address it, write the report file, and exit."
+     ```
+
+   - SDD が上位モデルへの切り替えを指示する場合（`references/handling-reports.md` の BLOCKED 2・`references/fix-loop.md` の round 4-5）と、session id が無い場合: 新しいセッションの `run`。モデルは CLI の既定のまま。終了後の Await 3 で新しい session id に記録を更新し、以後の `resume` はそれを使う
+
+     ```sh
+     cd "$PROJECT" && "$SKILL_DIR/adapters/<cli>.sh" run "$OUT" "Read <task-N-dispatch.md の絶対パス> and follow it exactly, including every Redispatch section. Earlier reports for this task: <task-N-report.round-*.md の絶対パス（スペース区切り）>. Address the open findings in the '## Redispatch <K>' section, write the report file, and exit."
+     ```
 
 5. Await を実行する
 
@@ -133,7 +141,7 @@ run を中断するときに実行する。完了条件: 実行中の background
 | 終了コード 0 だが report に `STATUS:` が無い | `git log $BASE..HEAD`・`git status`・`"$SKILL_DIR/adapters/<cli>.sh" last_message "$OUT"` で到達点を確かめてユーザーに報告する。作業が commit 済みのことがあるので作り直さない |
 | 同じタスクで 2 回目の打ち切り（終了コード 142） | 同上 |
 | 終了コードが 0 でも 142 でもない | background task の出力（stderr）と `$OUT.*` の末尾をユーザーに見せる（認証切れ・CLI 更新等） |
-| `session_id` が取れない | resume できないので、以後の Redispatch は 1〜3 の後に 4 の代わりに新規 `run` で行う。prompt は `Read <task-N-dispatch.md の絶対パス> and follow it exactly, including every Redispatch section.` にし、終了後に Await 2 で session id を取り直す |
+| `session_id` が取れない | resume できないので、次の Redispatch は 4 の `run` で行う。Await 4 の打ち切りで session id が無ければ、2 回目の打ち切りと同じ一手をとる |
 | 環境不備で BLOCKED | controller が依存を整えるか validation を構造検証に差し替え（Dispatch 前チェック参照）、Redispatch で伝える。implementer に install / setup させない |
 
 ## Red Flags
@@ -143,6 +151,6 @@ SDD の Red Flags に加えて、以下をしてはならない。
 - adapter を介さずに CLI を直接起動する（打ち切り線と終了コードの正規化が外れる）
 - adapter を Bash の前景で起動する（前景は 10 分上限で切られる）
 - バッチ境界を跨いで同じセッションを resume する（fresh-per-batch を壊す）
-- タスク途中の質問・fix を新規 `run` で行う（session id があるなら `resume` で文脈を保つ）
+- Redispatch 4 の `run` の条件に当たらない質問・fix を新規 `run` で行う（session id があるなら `resume` で文脈を保つ）
 - 実行依存の validation を dispatch 前に潰さない（Dispatch 前チェック参照）
 - 環境不備を implementer に install / setup で埋めさせる（依存を追加するかは controller の裁定事項）
