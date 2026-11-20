@@ -72,6 +72,20 @@
 - `bound` で打ち切られたら同じセッションに 1 回だけ自動で続行を依頼し、2 回目の打ち切りでユーザーに報告する
 - skill 名は `delegated-development`
 - Codex は `codex exec` を直接使う（Codex plugin は使わない）
+- agy は個人 Google アカウント（AI Pro/Ultra）の OAuth ログインのまま実装役に含める。下記 Terms Risk を承知の上での判断
+
+## Terms Risk
+
+agy を Claude Code から無人で反復起動する構成は、Antigravity の規約上グレーである（2026-11-20 調査）。
+
+- [Antigravity Terms](https://antigravity.google/terms) Section 6 は "using third party software, tools, or services to access the Service" と "using the Service in connection with products not provided by us" を違反とし、Antigravity / Gemini CLI アカウントの停止・解約事由としている
+- [Gemini CLI FAQ](https://geminicli.com/docs/resources/faq/) は Claude Code を名指しし、第三者ツールによる OAuth 流用を "direct violation" とし、第三者コーディングエージェントには API key を推奨している
+- [headless docs](https://antigravity.google/docs/cli/headless) は `-p`・`--output-format json`・`--conversation` をスクリプト / CI 用途として案内している。第三者 agent からの起動について Google の公式見解は見つからなかった
+- 2026-02 以降の AI Pro/Ultra アカウント大量停止は OAuth を抽出・中継する第三者ハーネス（OpenClaw 等）が対象で、未改変の `agy` を subprocess として起動した事例は見つからなかった
+- Section 5 により、Telemetry が有効な間は Interactions が製品改善に使われ、Google の従業員・委託先がレビューしうる。CLI の Telemetry 設定は `settings.json` ではなくアカウント側に保存される
+- Section 4 により、AI Agent の行為の責任は利用者が単独で負う。`always-proceed` は docs 上 "highest risk"
+
+skill は agy adapter の説明にこのリスクと参照先を 1 行で載せ、Prerequisites で agy を選んだときにユーザーへ表示する。
 
 ## Design
 
@@ -164,7 +178,7 @@ sequenceDiagram
 ### Prerequisites
 
 1. adapter 表の `detect()` で使える CLI を列挙する。0 個なら報告して SDD を提案する
-2. 2 個以上なら AskUserQuestion で今回の run の implementer を選ばせる（run 全体で 1 つ。タスクごとには変えない）
+2. 2 個以上なら AskUserQuestion で今回の run の implementer を選ばせる（run 全体で 1 つ。タスクごとには変えない）。agy の選択肢には Terms Risk の要約を description に入れる
 
 ### Setup
 
