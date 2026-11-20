@@ -23,6 +23,17 @@ sub descendants {
     return map { ($_, descendants($_)) } @children;
 }
 
+sub terminate_tree {
+    my ($pid) = @_;
+    alarm 0;
+    # A second signal must not interrupt the sweep, or the tree is orphaned.
+    $SIG{$_} = 'IGNORE' for qw(HUP INT TERM);
+    my @targets = ($pid, descendants($pid));
+    kill 'TERM', @targets;
+    sleep 2;
+    kill 'KILL', @targets;
+}
+
 my ($seconds, @command) = @ARGV;
 usage() unless defined $seconds && $seconds =~ /^[0-9]+$/ && $seconds > 0 && @command;
 
@@ -34,6 +45,11 @@ if ($pid == 0) {
         warn "bound.pl: $command[0]: $!\n";
         POSIX::_exit(127);
     };
+}
+
+my %signal_number = (HUP => 1, INT => 2, TERM => 15);
+for my $name (keys %signal_number) {
+    $SIG{$name} = sub { terminate_tree($pid); exit 128 + $signal_number{$name} };
 }
 
 # The handler dies because perl restarts waitpid after EINTR, so a flag would never be seen.
@@ -49,8 +65,5 @@ die $@ unless $@ eq "timeout\n";
 
 exit exit_code($?) if waitpid($pid, POSIX::WNOHANG()) == $pid;
 
-my @targets = ($pid, descendants($pid));
-kill 'TERM', @targets;
-sleep 2;
-kill 'KILL', @targets;
+terminate_tree($pid);
 exit 142;
