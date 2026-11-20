@@ -40,8 +40,8 @@ skill が生成する spec / plan の扱いを、Commit と Issue の 2 点に�
 
 Issue には spec だけを転記し、plan は転記しない。転記する場合は次の順で行う。
 
-1. spec がユーザーのレビューで確定したら、新規 Issue なら spec が解決する課題を本文にして作成する
-2. 対象の Issue に spec 全文をコメントとして追加する
+1. spec のレビューをユーザーに依頼する前に、新規 Issue なら spec が解決する課題を本文にして作成する
+2. 対象の Issue に spec 全文をコメントとして追加し、レビュー依頼にそのコメントの URL を添える
 3. 転記後に spec を改訂したら、spec のコメントを改訂後の全文で更新する
 
 ### Plan Execution
