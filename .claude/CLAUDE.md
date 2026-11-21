@@ -48,13 +48,9 @@ Issue には spec だけを転記し、plan は転記しない。転記する場
 
 実装 plan の実行前に、実行方式をユーザーに選ばせる。
 
-1. codex-driven-development（実装を Codex に委譲してトークン使用量を分散。herdr/Orca のセッション内が前提）
+1. delegated-development（実装を外部 CLI エージェントに委譲してトークン使用量を分散）
 2. subagent-driven-development（Claude subagent で実行）
 3. executing-plans（このセッションでインライン実行）
-
-### codex-driven-development
-
-同一セッション内で複数 worktree に並行実行する場合、2 つ目以降の worktree にも Monitor tool で watch.sh を個別に起動する: `~/.agents/skills/agmsg/scripts/watch.sh <session_id に一意なサフィックスを付けたもの> <project_path> claude-code`
 
 ## agmsg
 
