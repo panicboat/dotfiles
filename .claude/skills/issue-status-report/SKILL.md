@@ -1,0 +1,99 @@
+---
+name: issue-status-report
+description: Use when asked to summarize, report, or post the current status or progress of a GitHub Issue as a comment — e.g. 「Issue に現状をまとめて」「進捗を Issue に書いて」「全体像と現在地」「次に何をすればいいか」「何が残っているか」 — especially for multi-PR or multi-environment rollouts tracked in one Issue.
+---
+
+# Issue Status Report
+
+Issue を読んだ人が「全体像と現在地」「次にやること」「残っていること」を 1 回で把握できるコメントを作り、承認を得てから投稿する。
+
+## Workflow
+
+完了条件: ユーザーが承認した本文が、対象の Issue にコメントとして投稿されていること。
+
+1. Issue の本文と全コメントを読む: `gh issue view <N> -R <owner/repo> --json title,body,comments`
+2. 関連 PR を洗い出す。
+   - 本文・コメント中の PR の URL と `<owner/repo>#<N>` 表記
+   - Issue を参照した PR: `gh api repos/<owner>/<repo>/issues/<N>/timeline --paginate --jq '.[] | select(.event=="cross-referenced") | .source.issue | select(.pull_request) | .html_url'`
+3. 段階を決める。設計・spec のコメントに Rollout や手順があればその順に、なければ Issue 本文の「進め方」の順に並べる。マージ後の適用・確認・後片付け（旧設定の削除など）も段階として数える。
+4. 各 PR の状態を取る: `gh pr view <N> -R <owner/repo> --json state,isDraft,mergedAt,reviewDecision,statusCheckRollup,title`
+5. 実環境の状態（クラスタ・クラウド・監視）を確かめられる手段があれば確かめる。確かめられなかったものは「未確認」として本文に書く。
+6. [Output Contract](#output-contract) どおりに下書きを書き、ユーザーに見せて承認を得る。
+7. 投稿の直前に手順 4 をもう一度実行し、状態が変わっていれば下書きを直す。
+8. `gh issue comment <N> -R <owner/repo> --body-file <file>` で新しいコメントとして投稿し、URL を報告する。
+
+## Output Contract
+
+本文は次の雛形の節をこの順に持ち、1 行目は `## Overview and Current Position` にする。見出しは雛形のまま使い、本文は日本語で 1 文ごとに改行する。
+
+```markdown
+## Overview and Current Position
+
+YYYY年M月D日（曜）HH:MM JST 時点の状況です。
+<現在地を 1〜2 文>
+背景と設計は [設計コメント](<URL>) にあります。
+
+| # | 段階 | PR | 状態 |
+|---|---|---|---|
+| 1 | <段階> | <PR> | <状態> |
+
+<根拠: 何で確かめたか。確かめていないもの>
+
+## Next Actions
+
+1. <何をする>（担当: <名前。分からなければ「未定」>）。<完了条件>で完了とする。
+
+## Remaining Work
+
+- <作業>
+  - 待っているもの: <PR・作業・判断>
+
+## Open Decisions
+
+<決まっていない判断があるときだけこの節を置く>
+
+## Related
+
+- <関連リンク>
+```
+
+各節の書き方は次のとおり。
+
+### `## Overview and Current Position`
+
+1. 見出しの次の行: `YYYY年M月D日（曜）HH:MM JST 時点の状況です。`（見出しより前には何も書かない）
+2. 現在地を 1〜2 文で書く（例: 「staging と edge には適用済みで、動作確認が終わっていません。」）。
+3. 背景と設計は、設計・spec のコメントへのリンク 1 行にする。
+4. 段階の表: `| # | 段階 | PR | 状態 |`
+   - 状態の値: `✅ 完了`、`👉 現在地`、`⏳ 進行中`（レビュー中・CI 待ちなど）、`⏸️ <待っているもの>待ち`、`未着手`
+   - `👉 現在地` は、今手を動かすべき段階に付ける。並行して進められる段階が複数あれば、それぞれに付ける。
+5. 根拠の 1〜2 文: 何で確かめたか（`gh pr view`、kubectl、Datadog など）と、確かめていないもの。
+
+### `## Next Actions`
+
+今すぐ着手できる作業だけを、実行する順に番号付きで並べる。
+各項目は「何をする・担当・何で完了とみなすか」を 1 文で書き、補足は下の階層に置く。担当が分からないときは「担当: 未定」と書く。
+
+### `## Remaining Work`
+
+Next Actions より後の作業と、何かを待っている作業を並べる。
+各項目の下の階層に、待っているもの（PR のマージ、他チームの作業、判断など）を書く。
+
+### `## Open Decisions`
+
+決まっていない判断があるときだけ置く。各項目に、選択肢と判断の基準を下の階層で書く。
+
+### `## Related`
+
+関連する Issue・PR・お知らせのリンク。段階の表に出したものは繰り返さない。
+
+## Common Mistakes
+
+| 症状 | 直し方 |
+|---|---|
+| PR の一覧だけで、マージ後の適用・確認・削除が見えない | 手順 3 のとおり、マージ後の作業も段階の表の行にする |
+| 今すぐやる作業と、待ちの作業が同じ節にある | 着手できるものは Next Actions、待っているものは Remaining Work に置く |
+| 「本番の設定はまだ変わっていない」など、確かめていない推論を断定している | 根拠の文に「確認していない」と書くか、確かめてから書く |
+| 背景・問題・方針を設計コメントから書き写している | 設計コメントへのリンク 1 行にする |
+| 下書きの後に PR がマージされ、投稿時に古くなっている | 手順 7 で投稿の直前に取り直す |
+| 時点が日付だけ | 時刻（JST）まで書く。同じ日に状況が変わることがある |
