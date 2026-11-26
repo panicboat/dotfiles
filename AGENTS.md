@@ -94,6 +94,7 @@
   2. owner の `.github` リポジトリ（`gh api repos/<owner>/.github/contents/<path>`）
   3. `panicboat/.github`（PR のみ）
 - PR・issue のタイトルに Conventional Commits の type を付ける
+- PR・issue・コメントの本文に書く Issue・PR・コメントの参照（URL・`owner/repo#番号`）は、書き込む先と同じ owner のものだけにする
 - PR・issue の本文は 1 文ごとに改行する。箇条書きの項目は要点 1 文だけにし、理由・補足はその下の階層の項目に分ける
 
 ## Worktree
