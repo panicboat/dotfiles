@@ -9,7 +9,7 @@ Issue を読んだ人が「全体像と現在地」「次にやること」「�
 
 ## Workflow
 
-完了条件: ユーザーが承認した本文が、対象の Issue にコメントとして投稿されていること。
+完了条件: ユーザーが承認した本文が対象の Issue にコメントとして投稿され、それより前のレポートがすべて `OUTDATED` として隠されていること。
 
 1. Issue の本文と全コメントを読む: `gh issue view <N> -R <owner/repo> --json title,body,comments`
 2. 関連 PR を洗い出す。
@@ -18,7 +18,7 @@ Issue を読んだ人が「全体像と現在地」「次にやること」「�
 3. 段階を決める。設計・spec のコメントに Rollout や手順があればその順に、なければ Issue 本文の「進め方」の順に並べる。マージ後の適用・確認・後片付け（旧設定の削除など）も段階として数える。
 4. 各 PR の状態を取る: `gh pr view <N> -R <owner/repo> --json state,isDraft,mergedAt,reviewDecision,statusCheckRollup,title`
 5. 実環境の状態（クラスタ・クラウド・監視）を確かめられる手段があれば確かめる。確かめられなかったものは「未確認」として本文に書く。
-6. [Output Contract](#output-contract) どおりに下書きを書き、ユーザーに見せて承認を得る。
+6. [Output Contract](#output-contract) どおりに下書きを書く。下書きと、手順 11 の 1 つ目のコマンドの出力（隠す過去レポートの URL）をユーザーに見せて承認を得る。
 7. 投稿の直前に手順 4 をもう一度実行し、状態が変わっていれば下書きを直す。
 8. 下書きに別 owner の Issue・PR の参照がないことを確かめる。出力が `[]` でなければ、該当の参照を下書きから消して、もう一度確かめる。
 
@@ -27,12 +27,34 @@ Issue を読んだ人が「全体像と現在地」「次にやること」「�
    ```
 
 9. `gh issue comment <N> -R <owner/repo> --body-file <file>` で新しいコメントとして投稿する。
-10. 描画された本文に、リンクになっていない参照がないことを確かめる。出力が `[]` なら完了として URL を報告し、そうでなければ該当の参照を `owner/repo#番号` に直してコメントを編集し、もう一度確かめる。
+10. 描画された本文に、リンクになっていない参照がないことを確かめる。出力が `[]` なら手順 11 に進み、そうでなければ該当の参照を `owner/repo#番号` に直してコメントを編集し、もう一度確かめる。
 
    ```sh
    gh api repos/<owner>/<repo>/issues/comments/<comment_id> -H "Accept: application/vnd.github.html+json" --jq .body_html \
      | python3 -c 'import re,sys; h=re.sub(r"<a[^>]*>.*?</a>","",sys.stdin.read()); print(sorted(set(re.findall(r"[\w./-]*#\d+", re.sub(r"<[^>]+>"," ",h)))))'
    ```
+
+11. 過去のレポートを隠す。
+    1. 隠れていないレポートの node ID と URL を出す（1 行目が `## 全体像と現在地（` のコメント。投稿者は問わない）。
+
+       ```sh
+       gh api graphql --paginate -F owner=<owner> -F repo=<repo> -F number=<N> -f query='
+         query($owner: String!, $repo: String!, $number: Int!, $endCursor: String) {
+           repository(owner: $owner, name: $repo) { issue(number: $number) {
+             comments(first: 100, after: $endCursor) {
+               nodes { id url isMinimized body }
+               pageInfo { hasNextPage endCursor }
+           } } }
+         }' --jq '.data.repository.issue.comments.nodes[] | select(.isMinimized | not) | select(.body | startswith("## 全体像と現在地（")) | [.id, .url] | @tsv'
+       ```
+
+    2. 手順 9 で投稿したコメント以外の行ごとに、node ID を `OUTDATED` として隠す。
+
+       ```sh
+       gh api graphql -F id=<node_id> -f query='mutation($id: ID!) { minimizeComment(input: {subjectId: $id, classifier: OUTDATED}) { minimizedComment { isMinimized } } }'
+       ```
+
+    3. 1 をもう一度実行する。出力が手順 9 で投稿したコメントの 1 行だけなら完了として URL を報告する。2 でエラーになったコメントが残っていれば、その URL とエラーを報告に書く。
 
 ## Output Contract
 
@@ -123,4 +145,5 @@ Issue・PR の参照は、毎回 `owner/repo#番号` の完全な形で書く。
 | 同じリポジトリの PR を `owner/repo#1、#2` や `#1〜#3` と省略し、2 つ目以降がリンクにならない | 1 つずつ `owner/repo#番号` で書く。手順 10 で確かめる |
 | 状態・PR のセルに括弧の補足（Draft・承認済み・plan の件数・一部の進み具合）がある | セルは決めた値だけにする。一部だけ終わった段階は行を分け、PR の状態は「次にやること」の下の階層に書く |
 | 別 owner の Issue・PR を関連などに書いている | 消す。手順 8 で投稿前に確かめる |
+| 過去のレポートが隠れずに並び、どれが最新か分からない | 手順 11 で、投稿したコメント以外のレポートを `OUTDATED` として隠す |
 | 時点が日付だけ | 見出しの括弧に時刻（JST）まで書く。同じ日に状況が変わることがある |
